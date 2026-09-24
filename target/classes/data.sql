@@ -1,2 +1,0 @@
--- Initial data script for ExporTrace (data initialization managed via DataInitializer.java)
--- Data schema is created and updated automatically by Hibernate SQLite Community Dialect.
