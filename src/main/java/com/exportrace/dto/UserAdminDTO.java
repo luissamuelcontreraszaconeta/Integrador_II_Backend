@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class UserDTO {
+public class UserAdminDTO {
     private Long id;
     private String nombre;
     private String apellido;
@@ -14,13 +14,13 @@ public class UserDTO {
     private String rol;
     private Boolean activo;
     private String estado;
-    private LocalDateTime ultimoAcceso;
     private LocalDateTime fechaCreacion;
+    private LocalDateTime ultimoAcceso;
     private List<String> permissions;
 
-    public UserDTO() {}
+    public UserAdminDTO() {}
 
-    public UserDTO(User user) {
+    public UserAdminDTO(User user) {
         this.id = user.getId();
         this.nombre = user.getNombre();
         this.apellido = user.getApellido();
@@ -28,8 +28,8 @@ public class UserDTO {
         this.area = user.getArea();
         this.activo = user.getActivo();
         this.estado = user.getEstado();
-        this.ultimoAcceso = user.getUltimoAcceso();
         this.fechaCreacion = user.getFechaCreacion();
+        this.ultimoAcceso = user.getUltimoAcceso();
         if (user.getRole() != null) {
             this.rol = user.getRole().getNombre();
             if (user.getRole().getPermissions() != null) {
@@ -64,11 +64,11 @@ public class UserDTO {
     public String getEstado() { return estado; }
     public void setEstado(String estado) { this.estado = estado; }
 
-    public LocalDateTime getUltimoAcceso() { return ultimoAcceso; }
-    public void setUltimoAcceso(LocalDateTime ultimoAcceso) { this.ultimoAcceso = ultimoAcceso; }
-
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
     public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }
+
+    public LocalDateTime getUltimoAcceso() { return ultimoAcceso; }
+    public void setUltimoAcceso(LocalDateTime ultimoAcceso) { this.ultimoAcceso = ultimoAcceso; }
 
     public List<String> getPermissions() { return permissions; }
     public void setPermissions(List<String> permissions) { this.permissions = permissions; }

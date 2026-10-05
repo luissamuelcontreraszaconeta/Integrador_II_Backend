@@ -1,1 +1,37 @@
+# Build and Target
 target/
+*.jar
+*.war
+*.ear
+*.class
+
+# SQLite Databases & Backups
+*.db
+*.db.bak
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Uploaded Evidence & Static Storage (Keep folder structure if needed)
+uploads/*
+!uploads/.gitkeep
+
+# Environment variables & Local secrets
+.env
+.env.local
+.env.*.local
+application-local.properties
+
+# Logs
+logs/
+*.log
+
+# IDE & Editor files
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+.DS_Store
+Thumbs.db

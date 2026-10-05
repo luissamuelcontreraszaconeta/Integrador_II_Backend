@@ -33,6 +33,9 @@ public class LotService {
     private DocumentRepository documentRepository;
 
     @Autowired
+    private SanitaryCertificationRepository certificationRepository;
+
+    @Autowired
     private LotHistoryRepository lotHistoryRepository;
 
     @Autowired
@@ -60,6 +63,19 @@ public class LotService {
         Lot lot = lotRepository.findByQrToken(qrToken)
                 .orElseThrow(() -> new RuntimeException("Lote no encontrado con QR token: " + qrToken));
         return toFullDTO(lot);
+    }
+
+    public PublicTraceabilityDTO getPublicTraceability(String qrToken) {
+        Lot lot = lotRepository.findByQrToken(qrToken)
+                .orElseThrow(() -> new RuntimeException("Código de trazabilidad no encontrado: " + qrToken));
+
+        QualityInspection qa = qualityRepository.findByLoteId(lot.getId()).orElse(null);
+        SanitaryCertification cert = certificationRepository.findByLoteId(lot.getId()).orElse(null);
+        List<ColdChainRecord> coldRecords = coldChainRepository.findByLoteIdOrderByFechaHoraDesc(lot.getId());
+        boolean hasCriticalCold = coldRecords.stream().anyMatch(c -> "CRITICAL".equalsIgnoreCase(c.getEstadoMedicion()));
+        int docCount = documentRepository.findByLoteId(lot.getId()).size();
+
+        return new PublicTraceabilityDTO(lot, qa, cert, coldRecords.size(), hasCriticalCold, docCount);
     }
 
     @Transactional

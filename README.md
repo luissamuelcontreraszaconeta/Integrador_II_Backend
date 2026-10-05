@@ -209,3 +209,41 @@ mvn spring-boot:run
 ```bash
 java -jar target/exportrace-ica-backend-1.0.0.jar
 ```
+
+---
+
+## 🐳 9. Contenerización con Docker y Despliegue en Render
+
+El backend incluye un `Dockerfile` multi-etapa optimizado (Maven 3.9 + Temurin 21 -> Temurin 21 JRE Alpine) y soporte para variables de entorno en Render.
+
+### 9.1 Construcción y Ejecución con Docker Local
+
+```bash
+# 1. Construir la imagen Docker
+docker build -t exportrace-backend .
+
+# 2. Ejecutar el contenedor
+docker run -p 8080:8080 -e PORT=8080 exportrace-backend
+```
+
+### 9.2 Variables de Entorno en Render
+
+Configurar en el panel de **Environment Variables** de Render:
+
+| Variable | Valor de Ejemplo | Propósito |
+| :--- | :--- | :--- |
+| `PORT` | `8080` (Asignado dinámicamente) | Puerto donde escucha el servidor Spring Boot |
+| `CORS_ALLOWED_ORIGINS` | `https://tu-frontend.onrender.com,http://localhost:5173` | Orígenes web autorizados para invocar la API |
+| `SPRING_DATASOURCE_URL` | `jdbc:sqlite:exportrace.db` | Ruta a la base de datos SQLite |
+| `JWT_SECRET` | `TuClaveSecretaDe256Bits` | Secreto para firma criptográfica HMAC-SHA256 |
+| `JWT_EXPIRATION` | `86400000` | Tiempo de vida del token (24 horas en ms) |
+
+---
+
+## 📱 10. Endpoint Público de Trazabilidad para QR
+
+- **Endpoint**: `GET /api/public/traceability/{token}`
+- **Seguridad**: Configurado como público (`permitAll()`) en `SecurityConfig.java`.
+- **DTO de Respuesta**: `PublicTraceabilityDTO` (expone exclusivamente datos sanitarios, de especie, lote y validación, omitiendo contraseñas, correos y auditorías internas).
+
+

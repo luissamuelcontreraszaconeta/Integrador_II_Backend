@@ -1,10 +1,14 @@
 package com.exportrace.controller;
 
-import com.exportrace.dto.UserDTO;
-import com.exportrace.entity.User;
+import com.exportrace.dto.CreateUserRequest;
+import com.exportrace.dto.UserAdminDTO;
 import com.exportrace.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,21 +22,22 @@ public class UserController {
     private UserService userService;
 
     @GetMapping
-    public ResponseEntity<List<UserDTO>> getAllUsers() {
-        return ResponseEntity.ok(userService.getAllUsers());
+    @PreAuthorize("hasAuthority('USERS_VIEW') or hasRole('ADMINISTRADOR')")
+    public ResponseEntity<List<UserAdminDTO>> getAllUsers(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String status) {
+        return ResponseEntity.ok(userService.getAllUsers(search, role, status));
     }
 
     @PostMapping
-    public ResponseEntity<?> createUser(@RequestBody Map<String, Object> payload) {
+    @PreAuthorize("hasAuthority('USERS_CREATE') or hasRole('ADMINISTRADOR')")
+    public ResponseEntity<?> createUser(@Valid @RequestBody CreateUserRequest payload,
+                                        Authentication auth,
+                                        HttpServletRequest request) {
         try {
-            User user = new User();
-            user.setNombre((String) payload.get("nombre"));
-            user.setEmail((String) payload.get("email"));
-            user.setContrasena((String) payload.get("password"));
-            user.setArea((String) payload.get("area"));
-            String roleName = payload.get("rol") != null ? (String) payload.get("rol") : "PRODUCCION";
-
-            UserDTO created = userService.createUser(user, roleName);
+            String adminEmail = auth != null ? auth.getName() : "admin@exportrace.pe";
+            UserAdminDTO created = userService.createUser(payload, adminEmail, request);
             return ResponseEntity.ok(created);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));

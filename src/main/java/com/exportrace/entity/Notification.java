@@ -11,65 +11,109 @@ public class Notification {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = true)
+    private User user;
+
+    @Column(name = "target_role", nullable = true)
+    private String targetRole; // SUPERADMIN, ADMINISTRADOR, QA, LOGISTICA, PRODUCCION, GERENCIA, ALL
+
     @Column(nullable = false)
-    private String titulo;
+    private String title;
 
     @Column(nullable = false, columnDefinition = "TEXT")
-    private String mensaje;
+    private String message;
 
     @Column(nullable = false)
-    private String tipo; // INFO, WARNING, ALERT, SUCCESS
-
-    @Column(name = "rol_destino", nullable = false)
-    private String rolDestino; // QA, LOGISTICA, GERENCIA, PRODUCCION, ALL
+    private String type; // QUALITY_OBSERVED, COLD_CHAIN_ALERT, INSPECTION_PENDING, DOCUMENTATION_INCOMPLETE, CERTIFICATION_PENDING, CERTIFICATION_APPROVED, DISPATCH_PENDING, DISPATCH_AUTHORIZED, SECURITY_ALERT, INFO
 
     @Column(nullable = false)
-    private Boolean leido;
+    private String priority; // LOW, NORMAL, HIGH, URGENT
 
-    @Column(name = "fecha_creacion", nullable = false)
-    private LocalDateTime fechaCreacion;
+    @Column(nullable = false)
+    private String module; // QUALITY, COLD_CHAIN, LOTS, LOGISTICS, CERTIFICATION, DISPATCH, SECURITY, SYSTEM
 
-    private String link;
+    @Column(name = "entity_type")
+    private String entityType; // LOT, INSPECTION, CERTIFICATE, DISPATCH, USER
 
-    public Notification() {
-        this.leido = false;
-        this.fechaCreacion = LocalDateTime.now();
-        this.tipo = "INFO";
-        this.rolDestino = "ALL";
+    @Column(name = "entity_id")
+    private String entityId;
+
+    private String route; // e.g., /lots/1, /quality/inspect/1, /certification, /dispatch/1
+
+    @Column(name = "is_read", nullable = false)
+    private boolean isRead = false;
+
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "read_at")
+    private LocalDateTime readAt;
+
+    public Notification() {}
+
+    @PrePersist
+    public void prePersist() {
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
     }
 
-    public Notification(String titulo, String mensaje, String tipo, String rolDestino, String link) {
-        this.titulo = titulo;
-        this.mensaje = mensaje;
-        this.tipo = tipo;
-        this.rolDestino = rolDestino;
-        this.link = link;
-        this.leido = false;
-        this.fechaCreacion = LocalDateTime.now();
+    public Notification(User user, String targetRole, String title, String message, String type, String priority, String module, String entityType, String entityId, String route) {
+        this.user = user;
+        this.targetRole = targetRole;
+        this.title = title;
+        this.message = message;
+        this.type = type;
+        this.priority = priority != null ? priority : "NORMAL";
+        this.module = module != null ? module : "SYSTEM";
+        this.entityType = entityType;
+        this.entityId = entityId;
+        this.route = route;
+        this.isRead = false;
+        this.createdAt = LocalDateTime.now();
     }
 
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
-    public String getTitulo() { return titulo; }
-    public void setTitulo(String titulo) { this.titulo = titulo; }
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
 
-    public String getMensaje() { return mensaje; }
-    public void setMensaje(String mensaje) { this.mensaje = mensaje; }
+    public String getTargetRole() { return targetRole; }
+    public void setTargetRole(String targetRole) { this.targetRole = targetRole; }
 
-    public String getTipo() { return tipo; }
-    public void setTipo(String tipo) { this.tipo = tipo; }
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
 
-    public String getRolDestino() { return rolDestino; }
-    public void setRolDestino(String rolDestino) { this.rolDestino = rolDestino; }
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
 
-    public Boolean getLeido() { return leido; }
-    public void setLeido(Boolean leido) { this.leido = leido; }
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; }
 
-    public LocalDateTime getFechaCreacion() { return fechaCreacion; }
-    public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }
+    public String getPriority() { return priority; }
+    public void setPriority(String priority) { this.priority = priority; }
 
-    public String getLink() { return link; }
-    public void setLink(String link) { this.link = link; }
+    public String getModule() { return module; }
+    public void setModule(String module) { this.module = module; }
+
+    public String getEntityType() { return entityType; }
+    public void setEntityType(String entityType) { this.entityType = entityType; }
+
+    public String getEntityId() { return entityId; }
+    public void setEntityId(String entityId) { this.entityId = entityId; }
+
+    public String getRoute() { return route; }
+    public void setRoute(String route) { this.route = route; }
+
+    public boolean isRead() { return isRead; }
+    public void setRead(boolean read) { isRead = read; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getReadAt() { return readAt; }
+    public void setReadAt(LocalDateTime readAt) { this.readAt = readAt; }
 }
