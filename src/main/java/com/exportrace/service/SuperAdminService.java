@@ -56,6 +56,9 @@ public class SuperAdminService {
     @Autowired
     private AuditService auditService;
 
+    @Autowired
+    private SessionService sessionService;
+
     public SuperAdminDashboardDTO getDashboard(String rawPeriod) {
         String period = (rawPeriod != null && !rawPeriod.trim().isEmpty()) ? rawPeriod.trim().toLowerCase() : "quarter";
         if (!Arrays.asList("month", "quarter", "year").contains(period)) {
@@ -259,10 +262,16 @@ public class SuperAdminService {
         long deactivated = userRepository.countByActivoFalse();
         long superAdmins = userRepository.countByRoleNombreAndActivoTrue("SUPERADMIN");
 
+        Map<String, Object> sessionMetrics = sessionService.getSecurityOverviewMetrics();
+
         dto.setFailedLoginsCount(failedLogins);
         dto.setAccessDeniedCount(accessDenied);
         dto.setDeactivatedUsersCount(deactivated);
         dto.setTotalSuperAdmins(superAdmins);
+        dto.setActiveSessionsCount((long) sessionMetrics.getOrDefault("activeSessions", 0L));
+        dto.setExpiredSessionsCount((long) sessionMetrics.getOrDefault("expiredSessions", 0L));
+        dto.setRevokedSessionsCount((long) sessionMetrics.getOrDefault("revokedSessions", 0L));
+        dto.setTotalPoliciesCount((long) sessionMetrics.getOrDefault("totalPolicies", 0L));
 
         dto.setFailedLoginEvents(auditService.getAuditLogs(null, "AUTENTICACION", "LOGIN_FAILED", "FALLIDO", null, null,
                 PageRequest.of(0, 8, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent());
@@ -368,6 +377,8 @@ public class SuperAdminService {
         }
 
         String newModulesStr = String.join(", ", newGrantedNames);
+
+        sessionService.revokeAllUserSessions(userId, "MODIFICACION_ACCESO_A_MODULOS", superAdminName, request);
 
         auditService.logAction(
                 superAdminId,

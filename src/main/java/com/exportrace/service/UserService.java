@@ -37,6 +37,9 @@ public class UserService {
     @Autowired
     private AuditService auditService;
 
+    @Autowired
+    private SessionService sessionService;
+
     public List<UserAdminDTO> getAllUsers(String search, String roleFilter, String statusFilter) {
         Specification<User> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -181,6 +184,10 @@ public class UserService {
         boolean roleChanged = !prevRole.equalsIgnoreCase(newRole);
         String action = roleChanged ? "USER_ROLE_CHANGED" : "USER_UPDATED";
 
+        if (roleChanged || Boolean.FALSE.equals(saved.getActivo())) {
+            sessionService.revokeAllUserSessions(saved.getId(), roleChanged ? "CAMBIO_DE_ROL_ASIGNADO" : "USUARIO_DESACTIVADO", adminName, request);
+        }
+
         auditService.logAction(
                 adminId,
                 adminName,
@@ -221,6 +228,10 @@ public class UserService {
         String adminName = admin != null ? admin.getNombre() : "ADMIN";
         String adminRole = admin != null && admin.getRole() != null ? admin.getRole().getNombre() : "ADMINISTRADOR";
 
+        if (Boolean.FALSE.equals(activo)) {
+            sessionService.revokeAllUserSessions(saved.getId(), "CUENTA_DESACTIVADA", adminName, request);
+        }
+
         auditService.logAction(
                 adminId,
                 adminName,
@@ -255,6 +266,8 @@ public class UserService {
         Long adminId = admin != null ? admin.getId() : null;
         String adminName = admin != null ? admin.getNombre() : "ADMIN";
         String adminRole = admin != null && admin.getRole() != null ? admin.getRole().getNombre() : "ADMINISTRADOR";
+
+        sessionService.revokeAllUserSessions(saved.getId(), "RESTABLECIMIENTO_CONTRASENA", adminName, request);
 
         auditService.logAction(
                 adminId,

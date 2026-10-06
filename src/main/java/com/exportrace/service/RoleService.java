@@ -30,6 +30,9 @@ public class RoleService {
     @Autowired
     private AuditService auditService;
 
+    @Autowired
+    private SessionService sessionService;
+
     public List<RoleDTO> getAllRoles() {
         return roleRepository.findAll().stream().map(role -> {
             long count = userRepository.countByRoleId(role.getId());
@@ -74,6 +77,12 @@ public class RoleService {
                 .map(Permission::getCodigo)
                 .sorted()
                 .collect(Collectors.joining(", "));
+
+        // Invalidate active sessions for all users with this role so they refresh privileges
+        List<User> affectedUsers = userRepository.findByRoleId(saved.getId());
+        for (User u : affectedUsers) {
+            sessionService.revokeAllUserSessions(u.getId(), "ACTUALIZACION_PERMISOS_ROL (" + saved.getNombre() + ")", adminName, request);
+        }
 
         auditService.logAction(
                 adminId,

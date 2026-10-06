@@ -16,5 +16,6 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     long countByActivoFalse();
     long countByRoleNombreAndActivoTrue(String roleNombre);
     long countByRoleId(Long roleId);
+    List<User> findByRoleId(Long roleId);
     List<User> findByRoleNombre(String roleNombre);
 }

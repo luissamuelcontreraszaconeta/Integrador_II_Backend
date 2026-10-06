@@ -62,6 +62,9 @@ public class DataInitializer implements CommandLineRunner {
     private NotificationRepository notificationRepository;
 
     @Autowired
+    private SessionPolicyRepository sessionPolicyRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Override
@@ -238,6 +241,24 @@ public class DataInitializer implements CommandLineRunner {
         // 8. Seed Initial Real Notifications if empty
         if (notificationRepository.count() == 0) {
             seedInitialNotifications(superAdminUser, adminUser, prodUser, qaUser, logUser, gerUser);
+        }
+
+        // 9. Seed Initial Session Policies per Role (Idempotent)
+        seedInitialSessionPolicies();
+    }
+
+    private void seedInitialSessionPolicies() {
+        getOrCreateSessionPolicy("SUPERADMIN", 15, 120, 2);
+        getOrCreateSessionPolicy("ADMINISTRADOR", 20, 240, 2);
+        getOrCreateSessionPolicy("QA", 30, 360, 2);
+        getOrCreateSessionPolicy("PRODUCCION", 60, 480, 5);
+        getOrCreateSessionPolicy("LOGISTICA", 45, 480, 5);
+        getOrCreateSessionPolicy("GERENCIA", 30, 240, 2);
+    }
+
+    private void getOrCreateSessionPolicy(String role, int idle, int absolute, int warning) {
+        if (sessionPolicyRepository.findByRole(role).isEmpty()) {
+            sessionPolicyRepository.save(new SessionPolicy(role, idle, absolute, warning, "SYSTEM_INIT"));
         }
     }
 

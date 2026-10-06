@@ -71,11 +71,18 @@ El sistema utiliza la base de datos autocontenida `exportrace.db` ubicada en la 
 
 ## 🔌 4. Catálogo de Endpoints REST API
 
-### 4.1 Autenticación y Salud
+### 4.1 Autenticación, Sesiones y Seguridad
 | Método | Endpoint | Descripción | Autenticación | Rol Autorizado |
 | :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/api/health` | Estado del servidor backend y la BD SQLite. | Pública | Todos |
-| `POST` | `/api/auth/login` | Autenticación de usuario y emisión de JWT Token. | Pública | Todos |
+| `POST` | `/api/auth/login` | Autenticación de usuario, inicio de sesión y emisión de JWT (15 min) + Refresh Token. | Pública | Todos |
+| `POST` | `/api/auth/refresh` | Renovación de token de acceso JWT validando inactividad y políticas dinámicas. | Pública (con token/cookie) | Todos |
+| `POST` | `/api/auth/keep-alive` | Extensión de actividad para la sesión activa del usuario. | Requiere JWT | Todos |
+| `POST` | `/api/auth/logout` | Cierre de sesión y revocación del refresh token en BD. | Pública / JWT | Todos |
+| `GET` | `/api/superadmin/security/session-policies` | Lista de políticas dinámicas de sesión por rol. | Requiere JWT | `SUPERADMIN` |
+| `PUT` | `/api/superadmin/security/session-policies/{role}` | Actualización dinámica de políticas por rol en tiempo real. | Requiere JWT | `SUPERADMIN` |
+| `GET` | `/api/superadmin/security/sessions` | Monitoreo en tiempo real de sesiones de usuario. | Requiere JWT | `SUPERADMIN` |
+| `POST` | `/api/superadmin/security/sessions/{id}/revoke` | Revocación manual inmediata de una sesión activa. | Requiere JWT | `SUPERADMIN` |
 
 **Ejemplo Request (`POST /api/auth/login`):**
 ```json
@@ -88,7 +95,15 @@ El sistema utiliza la base de datos autocontenida `exportrace.db` ubicada en la 
 **Ejemplo Response (`200 OK`):**
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbms...",
+  "token": "eyJhbGciOiJIUzI1NiJ9...",
+  "refreshToken": "4a7b8c9d0e1f-82736152",
+  "sessionId": "b3f68a20-8025-4c2f-b441-11883726d11a",
+  "sessionPolicy": {
+    "role": "ADMINISTRADOR",
+    "idleTimeoutMinutes": 20,
+    "absoluteTimeoutMinutes": 240,
+    "warningBeforeMinutes": 2
+  },
   "user": {
     "id": 1,
     "nombre": "Ing. Carlos Mendoza",

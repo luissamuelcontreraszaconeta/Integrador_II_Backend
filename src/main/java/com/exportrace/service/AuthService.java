@@ -2,7 +2,7 @@ package com.exportrace.service;
 
 import com.exportrace.dto.AuthResponse;
 import com.exportrace.dto.LoginRequest;
-import com.exportrace.dto.UserDTO;
+import com.exportrace.dto.RefreshTokenRequest;
 import com.exportrace.entity.User;
 import com.exportrace.repository.UserRepository;
 import com.exportrace.util.JwtUtil;
@@ -28,6 +28,9 @@ public class AuthService {
 
     @Autowired
     private AuditService auditService;
+
+    @Autowired
+    private SessionService sessionService;
 
     @Transactional
     public AuthResponse login(LoginRequest request, HttpServletRequest httpRequest) {
@@ -93,7 +96,9 @@ public class AuthService {
         userRepository.save(user);
 
         String roleName = user.getRole() != null ? user.getRole().getNombre() : "PRODUCCION";
-        String token = jwtUtil.generateToken(user.getEmail(), roleName);
+
+        // Create managed user session
+        AuthResponse response = sessionService.createSession(user, httpRequest);
 
         auditService.logAction(
                 user.getId(),
@@ -101,16 +106,56 @@ public class AuthService {
                 roleName,
                 "LOGIN_SUCCESS",
                 "AUTENTICACION",
-                "User",
-                String.valueOf(user.getId()),
-                "Inicio de sesión exitoso en la plataforma",
+                "UserSession",
+                response.getSessionId(),
+                "Inicio de sesión exitoso en la plataforma. Sesión ID: " + response.getSessionId(),
                 null,
                 "Rol: " + roleName,
                 "EXITOSO",
                 httpRequest
         );
 
-        UserDTO userDTO = new UserDTO(user);
-        return new AuthResponse(token, userDTO);
+        return response;
+    }
+
+    @Transactional
+    public AuthResponse refresh(RefreshTokenRequest request, HttpServletRequest httpRequest) {
+        return sessionService.refreshSession(request.getRefreshToken(), httpRequest);
+    }
+
+    @Transactional
+    public void logout(String refreshToken, String sessionId, HttpServletRequest httpRequest) {
+        User currentUser = null;
+        String authHeader = httpRequest != null ? httpRequest.getHeader("Authorization") : null;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            if (jwtUtil.validateToken(token)) {
+                String email = jwtUtil.getEmailFromToken(token);
+                if (email != null) {
+                    currentUser = userRepository.findByEmail(email).orElse(null);
+                }
+                if (sessionId == null || sessionId.isBlank()) {
+                    sessionId = jwtUtil.getSessionIdFromToken(token);
+                }
+            }
+        }
+
+        sessionService.logout(refreshToken, sessionId, currentUser, httpRequest);
+    }
+
+    @Transactional
+    public void keepAlive(HttpServletRequest httpRequest) {
+        String authHeader = httpRequest != null ? httpRequest.getHeader("Authorization") : null;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            if (jwtUtil.validateToken(token)) {
+                String sessionId = jwtUtil.getSessionIdFromToken(token);
+                String email = jwtUtil.getEmailFromToken(token);
+                User user = email != null ? userRepository.findByEmail(email).orElse(null) : null;
+                if (sessionId != null) {
+                    sessionService.keepAlive(sessionId, user);
+                }
+            }
+        }
     }
 }
