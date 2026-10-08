@@ -23,30 +23,31 @@ public class ColdChainController {
     private ColdChainService coldChainService;
 
     @GetMapping("/lot/{lotId}")
-    public ResponseEntity<List<ColdChainRecordDTO>> getLogsByLotId(@PathVariable Long lotId) {
-        return ResponseEntity.ok(coldChainService.getLogsByLotId(lotId));
+    public ResponseEntity<List<ColdChainRecordDTO>> getLogsByLotId(@PathVariable String lotId) {
+        return ResponseEntity.ok(coldChainService.getLogsByLotIdentifier(lotId));
     }
 
     @GetMapping("/lot/{lotId}/profile")
-    public ResponseEntity<ThermalProfileDTO> getThermalProfile(@PathVariable Long lotId) {
-        return ResponseEntity.ok(coldChainService.getThermalProfile(lotId));
+    public ResponseEntity<ThermalProfileDTO> getThermalProfile(@PathVariable String lotId) {
+        return ResponseEntity.ok(coldChainService.getThermalProfileByIdentifier(lotId));
     }
 
     @GetMapping("/lot/{lotId}/incidents")
-    public ResponseEntity<List<ColdChainIncidentDTO>> getIncidentsByLotId(@PathVariable Long lotId) {
-        return ResponseEntity.ok(coldChainService.getIncidentsByLotId(lotId));
+    public ResponseEntity<List<ColdChainIncidentDTO>> getIncidentsByLotId(@PathVariable String lotId) {
+        return ResponseEntity.ok(coldChainService.getIncidentsByLotIdentifier(lotId));
     }
 
     @PostMapping("/lot/{lotId}")
     public ResponseEntity<ColdChainRecordDTO> addLog(
-            @PathVariable Long lotId,
+            @PathVariable String lotId,
             @RequestBody ColdChainRecordDTO dto,
             Authentication authentication) {
         String email = authentication != null ? authentication.getName() : "qa@exportrace.pe";
         String role = authentication != null && authentication.getAuthorities().stream().findFirst().isPresent()
                 ? authentication.getAuthorities().stream().findFirst().get().getAuthority().replace("ROLE_", "")
                 : "QA";
-        ColdChainRecordDTO saved = coldChainService.addTemperatureLog(lotId, dto, email, role);
+        Long resolvedId = coldChainService.findLotByIdentifier(lotId).getId();
+        ColdChainRecordDTO saved = coldChainService.addTemperatureLog(resolvedId, dto, email, role);
         return ResponseEntity.ok(saved);
     }
 
@@ -80,7 +81,7 @@ public class ColdChainController {
     @PostMapping("/lot/{lotId}/resolve-alert")
     @PreAuthorize("hasAnyRole('QA', 'ADMINISTRADOR', 'SUPERADMIN')")
     public ResponseEntity<?> resolveLatestAlert(
-            @PathVariable Long lotId,
+            @PathVariable String lotId,
             @Valid @RequestBody ResolveIncidentRequestDTO request,
             Authentication authentication) {
         String email = authentication != null ? authentication.getName() : "qa@exportrace.pe";
@@ -88,7 +89,7 @@ public class ColdChainController {
                 ? authentication.getAuthorities().stream().findFirst().get().getAuthority().replace("ROLE_", "")
                 : "QA";
         
-        List<ColdChainIncidentDTO> incidents = coldChainService.getIncidentsByLotId(lotId);
+        List<ColdChainIncidentDTO> incidents = coldChainService.getIncidentsByLotIdentifier(lotId);
         ColdChainIncidentDTO active = incidents.stream()
                 .filter(i -> "ACTIVE".equalsIgnoreCase(i.getStatus()) || "UNDER_REVIEW".equalsIgnoreCase(i.getStatus()))
                 .findFirst()

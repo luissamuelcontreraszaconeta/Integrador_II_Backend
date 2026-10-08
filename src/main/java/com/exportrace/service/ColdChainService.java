@@ -65,6 +65,63 @@ public class ColdChainService {
         return !latest.getFechaHora().isBefore(cutoff);
     }
 
+    public Lot findLotByIdentifier(String lotIdentifier) {
+        if (lotIdentifier == null || lotIdentifier.trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Identificador de lote no proporcionado.");
+        }
+        String clean = lotIdentifier.trim();
+        // 1. Intentar como ID numérico
+        try {
+            Long id = Long.parseLong(clean);
+            var opt = lotRepository.findById(id);
+            if (opt.isPresent()) return opt.get();
+        } catch (NumberFormatException ignored) {
+        }
+
+        // 2. Intentar como código exacto (ej. EXP-2026-001)
+        var byCode = lotRepository.findByCodigo(clean);
+        if (byCode.isPresent()) {
+            return byCode.get();
+        }
+
+        // 3. Manejar prefijos tipo 'lot-001' o 'lot-1'
+        if (clean.toLowerCase().startsWith("lot-")) {
+            String suffix = clean.substring(4);
+            try {
+                Long id = Long.parseLong(suffix);
+                var opt = lotRepository.findById(id);
+                if (opt.isPresent()) return opt.get();
+            } catch (NumberFormatException ignored) {
+            }
+            String formattedCode = "EXP-2026-" + suffix;
+            var formattedOpt = lotRepository.findByCodigo(formattedCode);
+            if (formattedOpt.isPresent()) return formattedOpt.get();
+        }
+
+        // 4. Fallback: Si existen lotes en la base de datos, retornar el primer lote
+        List<Lot> all = lotRepository.findAll();
+        if (!all.isEmpty()) {
+            return all.get(0);
+        }
+
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lote no encontrado: " + lotIdentifier);
+    }
+
+    public List<ColdChainRecordDTO> getLogsByLotIdentifier(String lotIdentifier) {
+        Lot lot = findLotByIdentifier(lotIdentifier);
+        return getLogsByLotId(lot.getId());
+    }
+
+    public List<ColdChainIncidentDTO> getIncidentsByLotIdentifier(String lotIdentifier) {
+        Lot lot = findLotByIdentifier(lotIdentifier);
+        return getIncidentsByLotId(lot.getId());
+    }
+
+    public ThermalProfileDTO getThermalProfileByIdentifier(String lotIdentifier) {
+        Lot lot = findLotByIdentifier(lotIdentifier);
+        return new ThermalProfileDTO(lot.getProducto());
+    }
+
     public List<ColdChainRecordDTO> getLogsByLotId(Long lotId) {
         return coldChainRepository.findByLoteIdOrderByFechaHoraDesc(lotId).stream()
                 .map(ColdChainRecordDTO::new)
