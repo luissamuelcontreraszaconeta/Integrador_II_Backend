@@ -11,6 +11,10 @@ public class LotDocumentDTO {
     private String fileUrl;
     private String size;
     private boolean required;
+    private Integer version = 1;
+    private String sha256;
+    private Boolean active = true;
+    private String mimeType;
 
     public LotDocumentDTO() {}
 
@@ -22,7 +26,15 @@ public class LotDocumentDTO {
             this.uploadedAt = doc.getFechaSubida() != null ? doc.getFechaSubida().toString() : "";
             this.uploadedBy = doc.getSubidoPor();
             this.fileUrl = doc.getUrl();
-            this.size = "2.4 MB";
+            this.version = doc.getVersion() != null ? doc.getVersion() : 1;
+            this.sha256 = doc.getSha256();
+            this.active = doc.getActive() != null ? doc.getActive() : true;
+            this.mimeType = doc.getMimeType();
+            if (doc.getFileSize() != null && doc.getFileSize() > 0) {
+                this.size = String.format("%.2f MB", doc.getFileSize() / (1024.0 * 1024.0));
+            } else {
+                this.size = "2.4 MB";
+            }
             this.required = true;
         }
     }
@@ -51,4 +63,16 @@ public class LotDocumentDTO {
 
     public boolean isRequired() { return required; }
     public void setRequired(boolean required) { this.required = required; }
+
+    public Integer getVersion() { return version; }
+    public void setVersion(Integer version) { this.version = version; }
+
+    public String getSha256() { return sha256; }
+    public void setSha256(String sha256) { this.sha256 = sha256; }
+
+    public Boolean getActive() { return active; }
+    public void setActive(Boolean active) { this.active = active; }
+
+    public String getMimeType() { return mimeType; }
+    public void setMimeType(String mimeType) { this.mimeType = mimeType; }
 }

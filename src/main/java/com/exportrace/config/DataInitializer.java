@@ -177,10 +177,10 @@ public class DataInitializer implements CommandLineRunner {
             Lot savedLot = lotRepository.save(lot);
 
             // History
-            lotHistoryRepository.save(new LotHistory(savedLot, null, "DRAFT", "Renzo Alva", "PRODUCCION", "Creación inicial de lote en planta"));
-            lotHistoryRepository.save(new LotHistory(savedLot, "DRAFT", "IN_QA", "Renzo Alva", "PRODUCCION", "Envío a inspección QA"));
-            lotHistoryRepository.save(new LotHistory(savedLot, "IN_QA", "READY_FOR_CERTIFICATION", "Dra. María Elena Quispe", "QA", "Inspección organoléptica CONFORME"));
-            lotHistoryRepository.save(new LotHistory(savedLot, "READY_FOR_CERTIFICATION", "CERTIFIED", "Lic. Fernando Prado", "LOGISTICA", "Certificado SANIPES emitido: CS-2026-094182"));
+            lotHistoryRepository.save(new LotHistory(savedLot, null, LotStatus.REGISTERED.name(), "Renzo Alva", "PRODUCCION", "Creación inicial de lote en planta"));
+            lotHistoryRepository.save(new LotHistory(savedLot, LotStatus.REGISTERED.name(), LotStatus.UNDER_QA_INSPECTION.name(), "Renzo Alva", "PRODUCCION", "Envío a inspección QA"));
+            lotHistoryRepository.save(new LotHistory(savedLot, LotStatus.UNDER_QA_INSPECTION.name(), LotStatus.READY_FOR_CERTIFICATION.name(), "Dra. María Elena Quispe", "QA", "Inspección organoléptica CONFORME"));
+            lotHistoryRepository.save(new LotHistory(savedLot, LotStatus.READY_FOR_CERTIFICATION.name(), LotStatus.CERTIFIED.name(), "Lic. Fernando Prado", "LOGISTICA", "Certificado SANIPES emitido: CS-2026-094182"));
 
             // QA
             QualityInspection qi = new QualityInspection();

@@ -4,6 +4,7 @@ import com.exportrace.entity.Dispatch;
 import com.exportrace.service.DispatchService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +16,7 @@ public class DispatchController {
     private DispatchService dispatchService;
 
     @GetMapping("/lot/{lotId}")
+    @PreAuthorize("hasAnyRole('LOGISTICA', 'ADMINISTRADOR', 'SUPERADMIN', 'QA', 'GERENCIA')")
     public ResponseEntity<Dispatch> getDispatchByLotId(@PathVariable Long lotId) {
         Dispatch dispatch = dispatchService.getDispatchByLotId(lotId);
         if (dispatch == null) return ResponseEntity.notFound().build();
@@ -22,6 +24,7 @@ public class DispatchController {
     }
 
     @PostMapping("/lot/{lotId}")
+    @PreAuthorize("hasAnyRole('LOGISTICA', 'ADMINISTRADOR', 'SUPERADMIN')")
     public ResponseEntity<Dispatch> registerDispatch(
             @PathVariable Long lotId,
             @RequestBody Dispatch request,

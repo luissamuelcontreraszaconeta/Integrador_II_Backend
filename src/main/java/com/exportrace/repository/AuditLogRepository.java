@@ -13,5 +13,6 @@ import java.util.List;
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long>, JpaSpecificationExecutor<AuditLog> {
     Page<AuditLog> findByUserId(Long userId, Pageable pageable);
     List<AuditLog> findTop10ByOrderByCreatedAtDesc();
+    List<AuditLog> findByActionOrderByCreatedAtDesc(String action);
     long countByResult(String result);
 }

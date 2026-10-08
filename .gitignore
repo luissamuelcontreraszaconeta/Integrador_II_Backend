@@ -15,6 +15,7 @@ target/
 # Uploaded Evidence & Static Storage (Keep folder structure if needed)
 uploads/*
 !uploads/.gitkeep
+data/
 
 # Environment variables & Local secrets
 .env

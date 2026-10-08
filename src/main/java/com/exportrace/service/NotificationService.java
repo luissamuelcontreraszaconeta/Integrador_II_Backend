@@ -124,4 +124,9 @@ public class NotificationService {
                                                      String entityType, String entityId, String route) {
         return createNotification(null, targetRole, title, message, type, priority, module, entityType, entityId, route);
     }
+
+    @Transactional
+    public NotificationDTO createNotification(String targetRole, String title, String message, String priority) {
+        return createNotification(null, targetRole, title, message, "ALERT", priority, "FRIO", "Lot", null, "/quality/coldchain");
+    }
 }

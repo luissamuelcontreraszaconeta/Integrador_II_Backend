@@ -8,12 +8,14 @@ public class LotDTO {
     private String id;
     private String code;
     private String status;
+    private Long version;
     private String createdAt;
     private String updatedAt;
     private String createdBy;
 
     private ProductionInfoDTO production;
     private QAInspectionDTO qa;
+    private List<QAInspectionDTO> qaInspections = new ArrayList<>();
     private List<ColdChainRecordDTO> coldChainLogs = new ArrayList<>();
     private List<LotDocumentDTO> documents = new ArrayList<>();
     private String qrToken;
@@ -25,6 +27,7 @@ public class LotDTO {
             this.id = lot.getId() != null ? lot.getId().toString() : "";
             this.code = lot.getCodigo();
             this.status = lot.getEstado();
+            this.version = lot.getVersion();
             this.createdAt = lot.getFechaCreacion() != null ? lot.getFechaCreacion().toString() : "";
             this.updatedAt = lot.getFechaActualizacion() != null ? lot.getFechaActualizacion().toString() : "";
             this.createdBy = lot.getInspeccionadoPor() != null ? lot.getInspeccionadoPor() : "Operaciones";
@@ -43,6 +46,9 @@ public class LotDTO {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
+
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
 
@@ -57,6 +63,9 @@ public class LotDTO {
 
     public QAInspectionDTO getQa() { return qa; }
     public void setQa(QAInspectionDTO qa) { this.qa = qa; }
+
+    public List<QAInspectionDTO> getQaInspections() { return qaInspections; }
+    public void setQaInspections(List<QAInspectionDTO> qaInspections) { this.qaInspections = qaInspections; }
 
     public List<ColdChainRecordDTO> getColdChainLogs() { return coldChainLogs; }
     public void setColdChainLogs(List<ColdChainRecordDTO> coldChainLogs) { this.coldChainLogs = coldChainLogs; }

@@ -11,6 +11,8 @@ import java.util.Optional;
 public interface LotRepository extends JpaRepository<Lot, Long> {
     Optional<Lot> findByCodigo(String codigo);
     Optional<Lot> findByQrToken(String qrToken);
+    boolean existsByCodigo(String codigo);
+    boolean existsByQrToken(String qrToken);
     List<Lot> findByEstado(String estado);
     List<Lot> findAllByOrderByFechaCreacionDesc();
     Optional<Lot> findTopByOrderByIdDesc();

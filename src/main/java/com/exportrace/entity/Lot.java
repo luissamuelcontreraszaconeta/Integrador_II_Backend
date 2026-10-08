@@ -35,10 +35,14 @@ public class Lot {
     private String observaciones;
 
     @Column(nullable = false)
-    private String estado; // DRAFT, PENDING_QA, IN_QA, OBSERVED, VALIDATION_PENDING, READY_FOR_CERTIFICATION, IN_CERTIFICATION, CERTIFIED, READY_FOR_DISPATCH, DISPATCHED
+    private String estado = LotStatus.REGISTERED.name();
 
     @Column(nullable = false, unique = true)
     private String qrToken;
+
+    @Version
+    @Column(name = "version")
+    private Long version;
 
     @Column(name = "fecha_creacion", nullable = false)
     private LocalDateTime fechaCreacion = LocalDateTime.now();
@@ -49,7 +53,7 @@ public class Lot {
     public Lot() {
         this.fechaCreacion = LocalDateTime.now();
         this.fechaActualizacion = LocalDateTime.now();
-        this.estado = "DRAFT";
+        this.estado = LotStatus.REGISTERED.name();
     }
 
     // Getters and Setters
@@ -100,6 +104,9 @@ public class Lot {
 
     public String getQrToken() { return qrToken; }
     public void setQrToken(String qrToken) { this.qrToken = qrToken; }
+
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
 
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
     public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }

@@ -1,5 +1,6 @@
 package com.exportrace.controller;
 
+import com.exportrace.entity.Lot;
 import com.exportrace.entity.SanitaryCertification;
 import com.exportrace.service.CertificationService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,5 +46,12 @@ public class CertificationController {
         String certNum = body != null ? body.get("certNumber") : null;
         SanitaryCertification cert = certificationService.approveCertification(lotId, certNum, email);
         return ResponseEntity.ok(cert);
+    }
+
+    @PostMapping("/lot/{lotId}/enable-dispatch")
+    public ResponseEntity<Lot> enableForDispatch(@PathVariable Long lotId, Authentication authentication) {
+        String email = authentication != null ? authentication.getName() : "logistica@exportrace.pe";
+        Lot lot = certificationService.enableForDispatch(lotId, email);
+        return ResponseEntity.ok(lot);
     }
 }

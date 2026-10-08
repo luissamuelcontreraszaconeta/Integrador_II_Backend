@@ -3,9 +3,11 @@ package com.exportrace.controller;
 import com.exportrace.dto.CreateLotRequest;
 import com.exportrace.dto.LotDTO;
 import com.exportrace.dto.LotStatusUpdateRequest;
+import com.exportrace.dto.UpdateLotRequest;
 import com.exportrace.entity.LotHistory;
 import com.exportrace.repository.LotHistoryRepository;
 import com.exportrace.service.LotService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -44,10 +46,20 @@ public class LotController {
     }
 
     @PostMapping
-    public ResponseEntity<LotDTO> createLot(@RequestBody CreateLotRequest request, Authentication authentication) {
+    public ResponseEntity<LotDTO> createLot(@Valid @RequestBody CreateLotRequest request, Authentication authentication) {
         String email = authentication != null ? authentication.getName() : "produccion@exportrace.pe";
         LotDTO created = lotService.createLot(request, email);
         return ResponseEntity.ok(created);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<LotDTO> updateLot(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateLotRequest request,
+            Authentication authentication) {
+        String email = authentication != null ? authentication.getName() : "produccion@exportrace.pe";
+        LotDTO updated = lotService.updateLot(id, request, email);
+        return ResponseEntity.ok(updated);
     }
 
     @PatchMapping("/{id}/status")

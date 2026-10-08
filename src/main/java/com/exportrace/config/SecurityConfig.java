@@ -49,9 +49,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/public/traceability/**").permitAll()
                 .requestMatchers("/api/lots/qr/**").permitAll()
                 .requestMatchers("/api/lots/expediente/**").permitAll()
-                .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/api/health").permitAll()
                 .requestMatchers("/error").permitAll()
+                // All other endpoints require authentication with JWT
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

@@ -50,6 +50,27 @@ public class AuditService {
         return auditLogRepository.save(log);
     }
 
+    @Transactional
+    public AuditLog logAction(String action, String module, String entityType, String entityId,
+                              String description, String usernameSnapshot, String userRole) {
+        AuditLog log = new AuditLog(
+                null,
+                usernameSnapshot != null ? usernameSnapshot : "SISTEMA",
+                userRole != null ? userRole : "SYSTEM",
+                action,
+                module != null ? module : "FRIO",
+                entityType,
+                entityId,
+                description,
+                null,
+                null,
+                "EXITOSO",
+                "127.0.0.1",
+                "Backend-Service"
+        );
+        return auditLogRepository.save(log);
+    }
+
     public Page<AuditLogDTO> getAuditLogs(Long userId, String module, String action, String result,
                                          LocalDateTime fromDate, LocalDateTime toDate, Pageable pageable) {
         Specification<AuditLog> spec = (root, query, cb) -> {
