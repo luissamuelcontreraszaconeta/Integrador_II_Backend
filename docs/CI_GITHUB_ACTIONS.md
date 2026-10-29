@@ -2,7 +2,17 @@
 
 **Curso:** Taller Integrador II — Semana 11: Control de Cambios e Integración Continua  
 **Proyecto:** Sistema Inteligente de Trazabilidad Hidrobiológica ExporTrace  
-**Estado de Implementación:** `IMPLEMENTADO_LOCALMENTE` *(Pendiente `VALIDADO_GITHUB_ACTIONS` tras apertura de Pull Request en GitHub)*
+**Estado de Implementación:**
+- **BACKEND (`Integrador_II_Backend`):** **`VALIDADO_GITHUB_ACTIONS`** ✅
+- **FRONTEND (`Integrador_II_Frontend`):** **`VALIDADO_GITHUB_ACTIONS`** ✅
+
+### Evidencia Real de Validación en GitHub Actions
+- **Pull Request Backend (`ci/github-actions-pipeline` $\rightarrow$ `main`):**
+  - Check ejecutado: **`Backend CI (Java 21 & Maven)`**
+  - Resultado: **`PASS`** (`All checks passed`).
+- **Pull Request Frontend (`ci/github-actions-pipeline` $\rightarrow$ `main`):**
+  - Check ejecutado: **`Frontend CI (Node 24, TypeScript & Vite)`**
+  - Resultado: **`PASS`** (`All checks passed`).
 
 ---
 
