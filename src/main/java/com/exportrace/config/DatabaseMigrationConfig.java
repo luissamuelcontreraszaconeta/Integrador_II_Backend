@@ -32,6 +32,7 @@ public class DatabaseMigrationConfig {
             migrateLotsTable(stmt);
             migrateQualityInspectionsTable(stmt);
             migrateDocumentsTable(stmt);
+            migrateIncidentReportsTable(stmt);
 
         } catch (Exception e) {
             log.error("[DatabaseMigration] Error during schema migration check: {}", e.getMessage(), e);
@@ -433,5 +434,56 @@ public class DatabaseMigrationConfig {
 
             log.info("[DatabaseMigration] Successfully migrated 'documents' to canonical versioned schema.");
         }
+    }
+
+    private void migrateIncidentReportsTable(Statement stmt) throws Exception {
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS incident_reports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                code VARCHAR(30) NOT NULL,
+                correlation_id VARCHAR(64) NOT NULL,
+                reporter_user_id BIGINT NOT NULL,
+                reporter_username VARCHAR(150) NOT NULL,
+                reporter_email VARCHAR(150) NOT NULL,
+                reporter_role VARCHAR(50) NOT NULL,
+                category VARCHAR(40) NOT NULL,
+                summary VARCHAR(200) NOT NULL,
+                description TEXT NOT NULL,
+                impact VARCHAR(20) NOT NULL,
+                urgency VARCHAR(20) NOT NULL,
+                priority VARCHAR(20) NOT NULL,
+                status VARCHAR(30) NOT NULL DEFAULT 'REPORTED',
+                module VARCHAR(60),
+                route VARCHAR(255),
+                related_lot_id BIGINT,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                resolved_at TIMESTAMP,
+                closed_at TIMESTAMP,
+                jira_issue_key VARCHAR(50),
+                jira_request_id VARCHAR(50),
+                jira_last_sync_at TIMESTAMP,
+                sync_status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+                sync_attempts INTEGER NOT NULL DEFAULT 0,
+                last_sync_error TEXT,
+                assigned_agent_name VARCHAR(150),
+                resolution_summary TEXT,
+                sla_first_response_target_at TIMESTAMP,
+                first_response_at TIMESTAMP,
+                sla_resolution_target_at TIMESTAMP,
+                sla_breached BOOLEAN NOT NULL DEFAULT 0,
+                version BIGINT DEFAULT 0,
+                CONSTRAINT uk_incident_code UNIQUE (code),
+                CONSTRAINT uk_incident_correlation_id UNIQUE (correlation_id)
+            );
+        """);
+
+        stmt.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_uk_incident_code ON incident_reports(code);");
+        stmt.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_uk_incident_correlation_id ON incident_reports(correlation_id);");
+        stmt.execute("CREATE INDEX IF NOT EXISTS idx_incident_reporter_user ON incident_reports(reporter_user_id);");
+        stmt.execute("CREATE INDEX IF NOT EXISTS idx_incident_status ON incident_reports(status);");
+        stmt.execute("CREATE INDEX IF NOT EXISTS idx_incident_priority ON incident_reports(priority);");
+        stmt.execute("CREATE INDEX IF NOT EXISTS idx_incident_sync_status ON incident_reports(sync_status);");
+        stmt.execute("CREATE INDEX IF NOT EXISTS idx_incident_created_at ON incident_reports(created_at);");
     }
 }

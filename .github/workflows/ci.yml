@@ -1,0 +1,47 @@
+name: ExporTrace CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend CI (Java 21 & Maven)
+    runs-on: ubuntu-latest
+    env:
+      JIRA_ENABLED: "false"
+      SPRING_DATASOURCE_URL: jdbc:sqlite:target/exportrace-ci-test.db
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: pom.xml
+
+      - name: Execute Backend Test Suite (118 tests)
+        run: mvn -B clean test
+
+      - name: Package Backend Spring Boot JAR
+        run: mvn -B package -DskipTests
+
+      - name: Upload Backend JAR Artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exportrace-ica-backend-1.0.0
+          path: target/exportrace-ica-backend-1.0.0.jar
+          if-no-files-found: error
+          retention-days: 14
