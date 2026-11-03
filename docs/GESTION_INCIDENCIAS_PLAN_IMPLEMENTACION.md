@@ -11,7 +11,7 @@
 | :---: | :--- | :---: | :---: |
 | **FASE A** | Modelo local de incidencias + BD + Priorización (`WorkContinuity`) + API local | **COMPLETADA Y APROBADA** | **16 / 16 PASS** (`IncidentServiceTest`) |
 | **FASE B** | Frontend Centro de Soporte (`LifeBuoy`) + Modal de Reporte + Mis Incidencias + Detalle | **COMPLETADA Y APROBADA** | **12 / 12 Casuísticas UI (`INC-B01..B12`)**<br/>`npm run build` (`0` errores TS) |
-| **FASE C** | Integración REST ExporTrace $\rightarrow$ Jira Service Management + Idempotencia (`correlationId`) | **IMPLEMENTADA_Y_PROBADA_CON_MOCK** *(Pendiente `VALIDADA_JIRA_REAL`)* | **15 / 15 PASS** (`JiraIncidentSyncTest`)<br/>**118 / 118 PASS** (Suite Backend Total) |
+| **FASE C** | Integración REST ExporTrace $\rightarrow$ Jira Service Management + Idempotencia (`correlationId`) | **`VALIDADA_JIRA_REAL`** (`RFC-EXP-2026-007`) | **15 / 15 PASS** (`JiraIncidentSyncTest`)<br/>**118 / 118 PASS** (Suite Backend Total)<br/>Ticket Real Jira Cloud: **`EXT-1`** (`requestId=10172`, `INC-2026-000001`) |
 | **FASE D** | Comentarios públicos, Adjuntos seguros (`Magic Bytes + SHA-256`) y Reapertura | `PENDIENTE` | — |
 | **FASE E** | Webhook Jira $\rightarrow$ ExporTrace con validación HMAC (`JIRA_WEBHOOK_SECRET`) | `PENDIENTE` | — |
 | **FASE F** | Notificaciones avanzadas, SLA sincronizado desde Jira y Scheduler de reintentos | `PENDIENTE` | — |
@@ -30,7 +30,7 @@
 - **Acceso Global y Navegación**: `SupportButton.tsx` (`LifeBuoy` en `Header.tsx` y `SuperAdminLayout.tsx`), sección `SOPORTE` en `Sidebar.tsx`, rutas `/support`, `/support/incidents`, `/support/incidents/:id`.
 - **Componentes y Vistas**: `ReportIncidentModal.tsx`, `IncidentPriorityBadge.tsx`, `IncidentStatusBadge.tsx`, `IncidentTimeline.tsx`, `SupportCenterPage.tsx`, `MyIncidentsPage.tsx`, `IncidentDetailPage.tsx`.
 
-### 2.3 FASE C — Integración REST ExporTrace $\rightarrow$ Jira Service Management (`IMPLEMENTADA_Y_PROBADA_CON_MOCK`)
+### 2.3 FASE C — Integración REST ExporTrace $\rightarrow$ Jira Service Management (`VALIDADA_JIRA_REAL`)
 - **Configuración Segura (`JiraProperties.java` + `application.properties` + `.env.example`)**:
   - `JIRA_ENABLED=false` como valor seguro por defecto.
   - Timeouts explícitos configurables (`JIRA_CONNECT_TIMEOUT_SECONDS=5`, `JIRA_READ_TIMEOUT_SECONDS=10`).
@@ -38,8 +38,13 @@
 - **Cliente REST (`JiraIncidentService.java`)**:
   - Basado en `RestClient` de Spring Boot 3.2 con `SimpleClientHttpRequestFactory`.
   - Validación de campos reales del Request Type (`GET /rest/servicedeskapi/servicedesk/{id}/requesttype/{id}/field`).
-  - Búsqueda de idempotencia JQL sanitizada (`GET /rest/api/3/search` por `JIRA_CORRELATION_FIELD_ID`).
+  - Búsqueda de idempotencia JQL sanitizada (`GET /rest/api/3/search/jql` por `JIRA_CORRELATION_FIELD_ID`).
   - Creación de solicitud (`POST /rest/servicedeskapi/request`) con descripción estructurada controlada y mapeo condicional de `priority` y `JIRA_EXPORTRACE_CODE_FIELD_ID`.
+- **Validación Real en Jira Service Management Cloud (`RFC-EXP-2026-007`)**:
+  - Proyecto: **Soporte ExporTrace** (`serviceDeskId = 2`, Key: `EXT`).
+  - Request Type: **Reportar incidencia ExporTrace** (`requestTypeId = 10083`).
+  - Campo de correlación: `customfield_10221` (`ExporTrace Correlation ID`).
+  - Evidencia real controlada: `incidentCode = INC-2026-000001`, `jiraIssueKey = EXT-1`, `jiraRequestId = 10172`, `syncStatus = SYNCED`, `correlationId = b84deac3-3849-4a00-9ac5-b508565e6368` (`1` único ticket encontrado en Jira).
 - **Orquestador de Sincronización (`IncidentSyncService.java`)**:
   - Separación de transacción de BD local (`TransactionTemplate`) y llamada HTTP externa.
   - Estrategia **LOOKUP BEFORE CREATE** para impedir tickets duplicados ante timeouts.

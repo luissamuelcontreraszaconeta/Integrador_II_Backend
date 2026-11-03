@@ -75,3 +75,19 @@
 | **¿Fallaron pruebas?** | **NO.** `118/118` pruebas Backend `PASS` y `npm ci && npm run build` Frontend `PASS`. |
 | **¿Qué aprendimos?** | En proyectos donde Backend y Frontend residen en dos repositorios Git separados (`Integrador_II_Backend` e `Integrador_II_Frontend`), cada repositorio debe tener su propio `.github/workflows/ci.yml` apuntando a la raíz (`.`) sin usar `working-directory` de subcarpeta. |
 | **¿Qué debe mejorar?** | Activar la regla de *Branch Protection* en la interfaz de GitHub para exigir ambos checks antes de fusionar futuros Pull Requests a `main`. |
+
+---
+
+## Registro Real: `PIR-EXP-2026-007` (Sobre `RFC-EXP-2026-007`)
+
+| Campo | Registro Real |
+| :--- | :--- |
+| **ID PIR / ID RFC** | `PIR-EXP-2026-007` $\leftrightarrow$ `RFC-EXP-2026-007` |
+| **Título del Cambio** | Validación Real de Integración ExporTrace $\leftrightarrow$ Jira Service Management Cloud (`VALIDADA_JIRA_REAL`) |
+| **¿El cambio logró su objetivo?** | **SÍ.** El preflight real contra Jira Service Management Cloud (`serviceDeskId=2` `Soporte ExporTrace`, `requestTypeId=10083` `Reportar incidencia ExporTrace`, `customfield_10221` `ExporTrace Correlation ID`) aprobó (`PREFLIGHT = PASS`). Se creó un único ticket real controlado desde ExporTrace (`incidentCode = INC-2026-000001`, `jiraIssueKey = EXT-1`, `jiraRequestId = 10172`, `syncStatus = SYNCED`, `correlationId = b84deac3-3849-4a00-9ac5-b508565e6368`) y se verificó en Jira que existe exactamente `1` ticket con ese `correlationId`. |
+| **¿Hubo incidentes?** | **NO.** Cero exposición de credenciales (`JIRA_API_TOKEN`, `Authorization` ni Basic Auth) y cero tickets duplicados. |
+| **¿Se cumplió la ventana?** | **SÍ.** Completado dentro de la ventana controlada de validación de Fase C. |
+| **¿Fue necesario rollback?** | **NO.** El feature flag `JIRA_ENABLED=false` permanece disponible como mecanismo de rollback inmediato sin pérdida de incidencias locales. |
+| **¿Fallaron pruebas?** | **NO.** `118/118` pruebas Backend `PASS` (`mvn -B clean test`), `mvn -B clean package` `BUILD SUCCESS` y Frontend `npm run build` `BUILD SUCCESS`. |
+| **¿Qué aprendimos?** | En Jira Cloud moderno, el endpoint heredado `GET /rest/api/3/search` devuelve `HTTP 410 Gone`; la búsqueda JQL de idempotencia (`LOOKUP BEFORE CREATE`) debe apuntar a `GET /rest/api/3/search/jql`, mantendo compatibilidad tanto con Jira Cloud real como con la suite determinista de mocks (`JiraIncidentSyncTest`). |
+| **¿Qué debe mejorar?** | Mantener `JIRA_ENABLED=false` en las ejecuciones de pruebas automatizadas locales y de CI para garantizar aislamiento total de la instancia real de Jira Cloud. |

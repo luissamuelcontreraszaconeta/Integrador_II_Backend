@@ -267,7 +267,7 @@ public class JiraIncidentService {
 
         String baseUrl = normalizeBaseUrl(jiraProperties.getBaseUrl());
         URI uri = UriComponentsBuilder.fromHttpUrl(baseUrl)
-                .path("/rest/api/3/search")
+                .path("/rest/api/3/search/jql")
                 .queryParam("jql", jql)
                 .queryParam("fields", "key,id,summary")
                 .queryParam("maxResults", 5)
