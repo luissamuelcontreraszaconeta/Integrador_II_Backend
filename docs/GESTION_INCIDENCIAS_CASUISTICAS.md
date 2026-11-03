@@ -1,7 +1,7 @@
 # Matriz Oficial de Casuísticas — Gestión de Incidencias Integrada con Jira Service Management
 
 **Sistema Inteligente de Trazabilidad Hidrobiológica ExporTrace**  
-*Estado de Validación actualizado al cierre de la FASE A, FASE B y FASE C (IMPLEMENTADA_Y_PROBADA_CON_MOCK)*
+*Estado de Validación actualizado al cierre de la FASE A, FASE B y FASE C (VALIDADA_JIRA_REAL — RFC-EXP-2026-007)*
 
 ---
 
@@ -12,7 +12,7 @@ Siguiendo la directriz normativa del proyecto:
 - Las sub-casuísticas de interfaz de usuario de la **Fase B (`INC-B01` a `INC-B12`)** están implementadas, verificadas en compilación estática (`tsc -b && vite build`) y documentadas en el checklist de validación de Fase B.
 - Las sub-casuísticas de integración REST con Jira Service Management de la **Fase C (`INC-C01` a `INC-C15`)** están verificadas con pruebas automatizadas deterministas (`MockRestServiceServer`) en [`JiraIncidentSyncTest.java`](file:///C:/Users/mayco/.gemini/antigravity/scratch/exportrace-ica-backend/src/test/java/com/exportrace/service/JiraIncidentSyncTest.java) (**`15/15 PASS`**).
 - La numeración y significado original de la matriz general **`INC-01` a `INC-15`** se conserva intacta:
-  - **`INC-01`**: Tramo local y UI **`PROBADA`**, y tramo Jira en estado **`PROBADA_CON_MOCK`** (`INC-C01`). Pasará a `VALIDADA_JIRA_REAL` únicamente cuando se conecte una instancia Jira Cloud real.
+  - **`INC-01`**: Tramo local, UI y sincronización real con Jira Service Management Cloud en estado **`VALIDADA_JIRA_REAL`** (`RFC-EXP-2026-007`: incidencia local `INC-2026-000001` sincronizada en vivo hacia el proyecto `Soporte ExporTrace` con `serviceDeskId=2`, `requestTypeId=10083`, `jiraIssueKey=EXT-1`, `jiraRequestId=10172`, `syncStatus=SYNCED` y `customfield_10221=b84deac3-3849-4a00-9ac5-b508565e6368`).
   - **`INC-02`** (Caída/timeout de Jira $\rightarrow$ `RETRY_PENDING`), **`INC-03`** (Priorización automática), **`INC-04`** (Aislamiento RBAC), **`INC-11`** (Idempotencia ante timeout mediante `correlationId` / `LOOKUP BEFORE CREATE`) e **`INC-12`** (Usuario desactivado bloqueado) están **`PROBADA` / `PROBADA_CON_MOCK`**.
   - Las casuísticas que dependen de Comentarios, Adjuntos, Webhooks o SLA sincronizado de retorno (`INC-05` a `INC-10`, `INC-13` a `INC-15`) permanecen honestamente en **`PENDIENTE`** para las Fases D, E y F.
 
@@ -64,7 +64,7 @@ Siguiendo la directriz normativa del proyecto:
 
 | Código Fase C | Subcasuística Técnica de Fase C | Método de Prueba en `JiraIncidentSyncTest` | Trazabilidad Matriz General | Resultado Real | Estado |
 | :--- | :--- | :--- | :---: | :--- | :---: |
-| **`INC-C01`** | Jira responde `201 Created` $\rightarrow$ `SYNCED` + `jiraIssueKey` (`EXP-27`) y `jiraRequestId` guardados + auditoría | `incC01_jiraReturns201_marksSyncedAndSavesIssueKey` | Tramo Jira de `INC-01` | `syncStatus = SYNCED`, `jiraIssueKey = EXP-27`, `slaAuthority = JIRA_AUTHORITATIVE`, auditoría `INCIDENT_SYNCED_TO_JIRA`. | **`PROBADA_CON_MOCK`** |
+| **`INC-C01`** | Jira responde `201 Created` $\rightarrow$ `SYNCED` + `jiraIssueKey` y `jiraRequestId` guardados + auditoría | `incC01_jiraReturns201_marksSyncedAndSavesIssueKey` + Validación en vivo `RFC-EXP-2026-007` (`EXT-1` / `10172`) | Tramo Jira de `INC-01` | `syncStatus = SYNCED`, `jiraIssueKey = EXT-1` (`EXP-27` en mock), `slaAuthority = JIRA_AUTHORITATIVE`, auditoría `INCIDENT_SYNCED_TO_JIRA`. | **`VALIDADA_JIRA_REAL`** |
 | **`INC-C02`** | Jira timeout (`SocketTimeoutException`) $\rightarrow$ incidencia local permanece en BD con `RETRY_PENDING` | `incC02_jiraTimeout_localIncidentPersistsWithRetryPending` | **`INC-02`** | HTTP `201 Created`, incidencia conservada localmente, `syncStatus = RETRY_PENDING`, auditoría `INCIDENT_SYNC_FAILED`. | **`PROBADA`** |
 | **`INC-C03`** | Jira responde `HTTP 503 Service Unavailable` $\rightarrow$ `RETRY_PENDING` | `incC03_jiraReturns503_marksRetryPending` | **`INC-02`** | Clasificado como error transitorio $\rightarrow$ `RETRY_PENDING`. | **`PROBADA`** |
 | **`INC-C04`** | Jira responde `HTTP 400 Bad Request` $\rightarrow$ `ERROR` permanente | `incC04_jiraReturns400_marksError` | Clasificación errores Fase C | Clasificado como error permanente de payload $\rightarrow$ `ERROR`. | **`PROBADA`** |
@@ -88,7 +88,7 @@ Siguiendo la directriz normativa del proyecto:
 
 | Código | Casuística General Original | Prioridad | Módulo / Capa | Evidencia Actual / Fase | Estado Actual |
 | :--- | :--- | :---: | :--- | :--- | :---: |
-| **`INC-01`** | Usuario reporta incidencia correctamente (crea `IncidentReport` local + sincroniza con Jira) | P0 | `IncidentService` / UI Fase B / `JiraIncidentService` | Tramo local y UI **PROBADOS** (`INC-A01..A13`, `INC-B01..B06`). Tramo Jira probado en **`INC-C01` (`JiraIncidentSyncTest`)**. | **`PROBADA_CON_MOCK`** *(Pendiente `VALIDADA_JIRA_REAL`)* |
+| **`INC-01`** | Usuario reporta incidencia correctamente (crea `IncidentReport` local + sincroniza con Jira) | P0 | `IncidentService` / UI Fase B / `JiraIncidentService` | Tramo local y UI **PROBADOS** (`INC-A01..A13`, `INC-B01..B06`). Tramo Jira probado en **`INC-C01`** y validado en vivo con Jira Cloud en **`RFC-EXP-2026-007`** (`INC-2026-000001` $\leftrightarrow$ `EXT-1`, `requestId=10172`, `customfield_10221=b84deac3-3849-4a00-9ac5-b508565e6368`). | **`VALIDADA_JIRA_REAL`** |
 | **`INC-02`** | Jira no responde o está caído al reportar $\rightarrow$ incidencia no se pierde (`RETRY_PENDING`) | P0 | `IncidentSyncService` | **`incC02_jiraTimeout_...` (`INC-C02`)**, **`incC03_jiraReturns503_...` (`INC-C03`)** | **`PROBADA`** |
 | **`INC-03`** | Cálculo automático de Prioridad Crítica (`Impacto HIGH + Urgencia HIGH` $\rightarrow$ `P1_CRITICAL`) y matriz de 9 combinaciones en backend | P0 | `IncidentPriorityService` | **`incA02_...` (`INC-A02`)**, **`incA03_...` (`INC-A03`)**, **`incA04_...` (`INC-A04`)**, **`INC-B06`** | **`PROBADA`** |
 | **`INC-04`** | Usuario intenta consultar, comentar o descargar adjunto de incidencia ajena $\rightarrow$ `403 Forbidden` + auditoría | P0 | `IncidentController` / `IncidentService` / UI Fase B | **`incA07_...` (`INC-A07`)**, **`incA08_...` (`INC-A08`)**, **`incA16_...` (`INC-A16`)**, **`INC-B10`**, **`INC-C12`** | **`PROBADA`** |

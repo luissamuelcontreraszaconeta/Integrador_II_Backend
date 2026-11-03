@@ -203,7 +203,25 @@ JIRA_READ_TIMEOUT_SECONDS=10
 3. **Prueba de Reintento Administrativo (`LOOKUP BEFORE CREATE`):**
    - Si una incidencia quedó en `RETRY_PENDING` o `ERROR`, un usuario con rol `ADMINISTRADOR` o `SUPERADMIN` puede invocar:
      `POST /api/admin/incidents/{id}/retry-sync`
-   - El backend buscará primero por `correlationId` en Jira (`/rest/api/3/search`) antes de crear un nuevo ticket, garantizando cero duplicados.
+   - El backend buscará primero por `correlationId` en Jira (`/rest/api/3/search/jql`) antes de crear un nuevo ticket, garantizando cero duplicados.
+
+---
+
+## 12. Evidencia de Validación Real en Jira Service Management Cloud (`RFC-EXP-2026-007`)
+
+La integración real de Fase C fue validada contra la instancia oficial de Jira Service Management Cloud bajo el cambio **`RFC-EXP-2026-007`**:
+
+- **Service Desk validado:** `Soporte ExporTrace` (`JIRA_SERVICE_DESK_ID=2`, Project Key: `EXT`)
+- **Request Type validado:** `Reportar incidencia ExporTrace` (`JIRA_REQUEST_TYPE_ID=10083`)
+- **Custom Field de correlación:** `ExporTrace Correlation ID` (`JIRA_CORRELATION_FIELD_ID=customfield_10221`)
+- **Incidencia controlada generada en ExporTrace:**
+  - `incidentCode`: `INC-2026-000001`
+  - `correlationId`: `b84deac3-3849-4a00-9ac5-b508565e6368`
+  - `jiraIssueKey`: `EXT-1`
+  - `jiraRequestId`: `10172`
+  - `syncStatus`: `SYNCED`
+  - `tickets encontrados para correlationId`: `1` (`EXT-1`)
+- **Estado de Fase C:** **`VALIDADA_JIRA_REAL`**
 
 ---
 
