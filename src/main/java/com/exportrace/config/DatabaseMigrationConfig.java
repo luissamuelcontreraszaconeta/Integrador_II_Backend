@@ -33,6 +33,7 @@ public class DatabaseMigrationConfig {
             migrateQualityInspectionsTable(stmt);
             migrateDocumentsTable(stmt);
             migrateIncidentReportsTable(stmt);
+            migrateServiceRequestsTable(stmt);
 
         } catch (Exception e) {
             log.error("[DatabaseMigration] Error during schema migration check: {}", e.getMessage(), e);
@@ -485,5 +486,50 @@ public class DatabaseMigrationConfig {
         stmt.execute("CREATE INDEX IF NOT EXISTS idx_incident_priority ON incident_reports(priority);");
         stmt.execute("CREATE INDEX IF NOT EXISTS idx_incident_sync_status ON incident_reports(sync_status);");
         stmt.execute("CREATE INDEX IF NOT EXISTS idx_incident_created_at ON incident_reports(created_at);");
+    }
+
+    private void migrateServiceRequestsTable(Statement stmt) throws Exception {
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS service_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                code VARCHAR(30) NOT NULL,
+                service_code VARCHAR(30) NOT NULL,
+                service_title VARCHAR(200) NOT NULL,
+                category_key VARCHAR(40) NOT NULL,
+                category_label VARCHAR(100) NOT NULL,
+                correlation_id VARCHAR(64) NOT NULL,
+                requester_user_id BIGINT NOT NULL,
+                requester_username VARCHAR(150) NOT NULL,
+                requester_email VARCHAR(150) NOT NULL,
+                requester_role VARCHAR(50) NOT NULL,
+                summary VARCHAR(200) NOT NULL,
+                lot_code VARCHAR(60) NOT NULL,
+                requested_information TEXT NOT NULL,
+                additional_detail TEXT,
+                status VARCHAR(30) NOT NULL DEFAULT 'REGISTERED',
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                sla_target VARCHAR(100) NOT NULL DEFAULT '4 horas hábiles',
+                sla_authority VARCHAR(40) NOT NULL DEFAULT 'LOCAL_ESTIMATE',
+                jira_issue_key VARCHAR(50),
+                jira_request_id VARCHAR(50),
+                jira_request_type_id VARCHAR(30),
+                jira_last_sync_at TIMESTAMP,
+                sync_status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+                sync_attempts INTEGER NOT NULL DEFAULT 0,
+                last_sync_error TEXT,
+                version BIGINT DEFAULT 0,
+                CONSTRAINT uk_service_request_code UNIQUE (code),
+                CONSTRAINT uk_service_request_correlation_id UNIQUE (correlation_id)
+            );
+        """);
+
+        stmt.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_uk_service_request_code ON service_requests(code);");
+        stmt.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_uk_service_request_correlation_id ON service_requests(correlation_id);");
+        stmt.execute("CREATE INDEX IF NOT EXISTS idx_sr_requester_user ON service_requests(requester_user_id);");
+        stmt.execute("CREATE INDEX IF NOT EXISTS idx_sr_service_code ON service_requests(service_code);");
+        stmt.execute("CREATE INDEX IF NOT EXISTS idx_sr_status ON service_requests(status);");
+        stmt.execute("CREATE INDEX IF NOT EXISTS idx_sr_sync_status ON service_requests(sync_status);");
+        stmt.execute("CREATE INDEX IF NOT EXISTS idx_sr_created_at ON service_requests(created_at);");
     }
 }
