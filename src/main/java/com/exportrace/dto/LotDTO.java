@@ -19,6 +19,10 @@ public class LotDTO {
     private List<ColdChainRecordDTO> coldChainLogs = new ArrayList<>();
     private List<LotDocumentDTO> documents = new ArrayList<>();
     private String qrToken;
+    private String certificationId;
+    private java.util.Map<String, Object> dispatchInfo;
+    private java.util.Map<String, Object> validation;
+    private List<java.util.Map<String, String>> timeline = new ArrayList<>();
 
     public LotDTO() {}
 
@@ -75,4 +79,16 @@ public class LotDTO {
 
     public String getQrToken() { return qrToken; }
     public void setQrToken(String qrToken) { this.qrToken = qrToken; }
+
+    public String getCertificationId() { return certificationId; }
+    public void setCertificationId(String certificationId) { this.certificationId = certificationId; }
+
+    public java.util.Map<String, Object> getDispatchInfo() { return dispatchInfo; }
+    public void setDispatchInfo(java.util.Map<String, Object> dispatchInfo) { this.dispatchInfo = dispatchInfo; }
+
+    public java.util.Map<String, Object> getValidation() { return validation; }
+    public void setValidation(java.util.Map<String, Object> validation) { this.validation = validation; }
+
+    public List<java.util.Map<String, String>> getTimeline() { return timeline; }
+    public void setTimeline(List<java.util.Map<String, String>> timeline) { this.timeline = timeline; }
 }

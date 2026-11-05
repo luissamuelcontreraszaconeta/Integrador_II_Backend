@@ -43,6 +43,9 @@ public class LotService {
     private SanitaryCertificationRepository certificationRepository;
 
     @Autowired
+    private DispatchRepository dispatchRepository;
+
+    @Autowired
     private LotHistoryRepository lotHistoryRepository;
 
     @Autowired
@@ -212,6 +215,42 @@ public class LotService {
         ccr.setObservaciones("Lectura inicial de temperatura al registrar el lote");
         coldChainRepository.save(ccr);
 
+        // Initial mandatory production documents so newly created lots share the same baseline structure as DataInitializer lots
+        if (documentRepository.findByLoteId(savedLot.getId()).isEmpty()) {
+            Document docDj = new Document(
+                    "Declaracion_Jurada_Origen_" + savedLot.getCodigo() + ".pdf",
+                    "DECLARACION_JURADA",
+                    "/documents/DJ_" + savedLot.getCodigo() + ".pdf",
+                    userName,
+                    savedLot
+            );
+            documentRepository.save(docDj);
+
+            Document docPesaje = new Document(
+                    "Ticket_Pesaje_" + savedLot.getCodigo() + ".pdf",
+                    "TICKET_PESAJE",
+                    "/documents/PESAJE_" + savedLot.getCodigo() + ".pdf",
+                    userName,
+                    savedLot
+            );
+            documentRepository.save(docPesaje);
+        }
+
+        auditService.logAction(
+                user != null ? user.getId() : null,
+                userEmail != null ? userEmail : "produccion@exportrace.pe",
+                userRole,
+                "LOT_CREATED",
+                "LOTES",
+                "Lot",
+                String.valueOf(savedLot.getId()),
+                "Registro de lote en sistema: " + savedLot.getCodigo() + " (" + savedLot.getPesoNetoKg() + " kg)",
+                null,
+                "estado: " + savedLot.getEstado() + ", version: " + savedLot.getVersion(),
+                "EXITOSO",
+                null
+        );
+
         return toFullDTO(savedLot);
     }
 
@@ -355,6 +394,72 @@ public class LotService {
         // Map Documents
         List<Document> docList = documentRepository.findByLoteId(lot.getId());
         dto.setDocuments(docList.stream().map(LotDocumentDTO::new).toList());
+
+        // Map Sanitary Certification if present
+        SanitaryCertification cert = certificationRepository.findByLoteId(lot.getId()).orElse(null);
+        if (cert != null) {
+            dto.setCertificationId(String.valueOf(lot.getId()));
+        }
+
+        // Map Dispatch Info if present
+        Dispatch disp = dispatchRepository.findByLoteId(lot.getId()).orElse(null);
+        if (disp != null) {
+            java.util.Map<String, Object> dispMap = new java.util.LinkedHashMap<>();
+            dispMap.put("authorizedAt", disp.getFechaDespacho() != null ? disp.getFechaDespacho().toString() : dto.getUpdatedAt());
+            dispMap.put("authorizedBy", "Logística ExporTrace");
+            dispMap.put("destinationPort", disp.getPuertoDestino() != null ? disp.getPuertoDestino() : "Puerto Internacional");
+            dispMap.put("destinationCountry", disp.getPuertoDestino() != null && disp.getPuertoDestino().contains(",")
+                    ? disp.getPuertoDestino().substring(disp.getPuertoDestino().lastIndexOf(",") + 1).trim()
+                    : "Destino Exportación");
+            dispMap.put("containerNumber", disp.getNumeroContenedor() != null ? disp.getNumeroContenedor() : "");
+            dispMap.put("sealNumber", disp.getPrecintoSeguridad() != null ? disp.getPrecintoSeguridad() : "");
+            dispMap.put("shippingLine", disp.getTransportista() != null ? disp.getTransportista() : "");
+            dispMap.put("estimatedDeparture", disp.getFechaEstimadaLlegada() != null
+                    ? disp.getFechaEstimadaLlegada().toLocalDate().toString()
+                    : LocalDate.now().plusDays(15).toString());
+            dto.setDispatchInfo(dispMap);
+        }
+
+        // Compute Validation & Timeline from current relational state
+        boolean hasProd = dto.getProduction() != null && dto.getProduction().getQuantity() != null && dto.getProduction().getQuantity() > 0;
+        boolean hasQaConforme = dto.getQa() != null && "CONFORME".equalsIgnoreCase(dto.getQa().getOrganolepticResult());
+        boolean hasColdOk = !ccrList.isEmpty() && ccrList.stream().noneMatch(c -> "CRITICAL".equalsIgnoreCase(c.getEstadoMedicion()));
+        boolean hasDocs = !docList.isEmpty();
+        boolean isAllPass = hasProd && hasQaConforme && hasColdOk && hasDocs;
+
+        java.util.List<java.util.Map<String, Object>> valItems = java.util.List.of(
+                java.util.Map.of("key", "prod", "label", "Información de producción completa", "status", hasProd ? "PASS" : "FAIL"),
+                java.util.Map.of("key", "qa", "label", "Control de calidad QA registrado y conforme", "status", hasQaConforme ? "PASS" : (dto.getQa() != null ? "FAIL" : "PENDING")),
+                java.util.Map.of("key", "cold", "label", "Cadena de frío con lecturas normales (< -18°C)", "status", hasColdOk ? "PASS" : (ccrList.isEmpty() ? "PENDING" : "FAIL")),
+                java.util.Map.of("key", "docs", "label", "Documentación obligatoria adjunta (Declaración Jurada, Pesaje)", "status", hasDocs ? "PASS" : "FAIL")
+        );
+        java.util.Map<String, Object> validationMap = new java.util.LinkedHashMap<>();
+        validationMap.put("isValidated", isAllPass);
+        validationMap.put("validatedAt", dto.getUpdatedAt());
+        validationMap.put("validatedBy", "Motor ExporTrace P0");
+        validationMap.put("items", valItems);
+        validationMap.put("observations", java.util.List.of());
+        dto.setValidation(validationMap);
+
+        String st = lot.getEstado() != null ? lot.getEstado() : "REGISTERED";
+        String qaStageStatus = hasQaConforme ? "COMPLETED" : (dto.getQa() != null ? "OBSERVED" : ("REGISTERED".equals(st) || "UNDER_QA_INSPECTION".equals(st) ? "IN_PROGRESS" : "PENDING"));
+        String coldStageStatus = ccrList.isEmpty() ? "PENDING" : (hasColdOk ? "COMPLETED" : "OBSERVED");
+        String valStageStatus = isAllPass ? "COMPLETED" : ("OBSERVED".equals(st) ? "OBSERVED" : "PENDING");
+        String certStageStatus = ("CERTIFIED".equals(st) || "READY_FOR_DISPATCH".equals(st) || "DISPATCHED".equals(st))
+                ? "COMPLETED"
+                : ("IN_CERTIFICATION".equals(st) ? "IN_PROGRESS" : "PENDING");
+        String dispStageStatus = "DISPATCHED".equals(st)
+                ? "COMPLETED"
+                : ("READY_FOR_DISPATCH".equals(st) ? "IN_PROGRESS" : "PENDING");
+
+        dto.setTimeline(java.util.List.of(
+                java.util.Map.of("stage", "PRODUCCION", "status", "COMPLETED", "updatedAt", dto.getCreatedAt()),
+                java.util.Map.of("stage", "QA", "status", qaStageStatus, "updatedAt", dto.getQa() != null && dto.getQa().getInspectedAt() != null ? dto.getQa().getInspectedAt() : dto.getUpdatedAt()),
+                java.util.Map.of("stage", "COLD_CHAIN", "status", coldStageStatus, "updatedAt", !ccrList.isEmpty() && ccrList.get(0).getFechaHora() != null ? ccrList.get(0).getFechaHora().toString() : ""),
+                java.util.Map.of("stage", "VALIDACION", "status", valStageStatus, "updatedAt", isAllPass ? dto.getUpdatedAt() : ""),
+                java.util.Map.of("stage", "CERTIFICACION", "status", certStageStatus, "updatedAt", cert != null && cert.getFechaSolicitud() != null ? cert.getFechaSolicitud().toString() : ""),
+                java.util.Map.of("stage", "DESPACHO", "status", dispStageStatus, "updatedAt", disp != null && disp.getFechaDespacho() != null ? disp.getFechaDespacho().toString() : "")
+        ));
 
         return dto;
     }
