@@ -5,6 +5,7 @@ import com.exportrace.entity.SanitaryCertification;
 import com.exportrace.service.CertificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,11 +20,13 @@ public class CertificationController {
     private CertificationService certificationService;
 
     @GetMapping
+    @PreAuthorize("hasAuthority('CERTIFICATION_VIEW') or hasAuthority('LOTS_VIEW') or hasAnyRole('LOGISTICA', 'QA', 'GERENCIA', 'PRODUCCION', 'ADMINISTRADOR', 'SUPERADMIN')")
     public ResponseEntity<List<SanitaryCertification>> getAllCertifications() {
         return ResponseEntity.ok(certificationService.getAllCertifications());
     }
 
     @GetMapping("/lot/{lotId}")
+    @PreAuthorize("hasAuthority('CERTIFICATION_VIEW') or hasAuthority('LOTS_VIEW') or hasAnyRole('LOGISTICA', 'QA', 'GERENCIA', 'PRODUCCION', 'ADMINISTRADOR', 'SUPERADMIN')")
     public ResponseEntity<SanitaryCertification> getCertificationByLotId(@PathVariable Long lotId) {
         SanitaryCertification cert = certificationService.getCertificationByLotId(lotId);
         if (cert == null) return ResponseEntity.notFound().build();
@@ -31,6 +34,7 @@ public class CertificationController {
     }
 
     @PostMapping("/lot/{lotId}/request")
+    @PreAuthorize("hasAuthority('CERTIFICATION_MANAGE') or hasAuthority('MODULE_CERTIFICACION') or hasAnyRole('LOGISTICA', 'ADMINISTRADOR', 'SUPERADMIN')")
     public ResponseEntity<SanitaryCertification> requestCertification(@PathVariable Long lotId, Authentication authentication) {
         String email = authentication != null ? authentication.getName() : "logistica@exportrace.pe";
         SanitaryCertification cert = certificationService.requestCertification(lotId, email);
@@ -38,6 +42,7 @@ public class CertificationController {
     }
 
     @PostMapping("/lot/{lotId}/approve")
+    @PreAuthorize("hasAuthority('CERTIFICATION_MANAGE') or hasAuthority('MODULE_CERTIFICACION') or hasAnyRole('LOGISTICA', 'ADMINISTRADOR', 'SUPERADMIN')")
     public ResponseEntity<SanitaryCertification> approveCertification(
             @PathVariable Long lotId,
             @RequestBody(required = false) Map<String, String> body,
@@ -49,6 +54,7 @@ public class CertificationController {
     }
 
     @PostMapping("/lot/{lotId}/enable-dispatch")
+    @PreAuthorize("hasAuthority('CERTIFICATION_MANAGE') or hasAuthority('MODULE_CERTIFICACION') or hasAnyRole('LOGISTICA', 'ADMINISTRADOR', 'SUPERADMIN')")
     public ResponseEntity<Lot> enableForDispatch(@PathVariable Long lotId, Authentication authentication) {
         String email = authentication != null ? authentication.getName() : "logistica@exportrace.pe";
         Lot lot = certificationService.enableForDispatch(lotId, email);

@@ -212,6 +212,9 @@ public class DataInitializer implements CommandLineRunner {
             Document doc = new Document("Declaracion_Jurada_Origen_EXP-2026-001.pdf", "DECLARACION_JURADA", "https://exportrace-docs.s3.amazonaws.com/DJ-001.pdf", "Renzo Alva", savedLot);
             documentRepository.save(doc);
 
+            Document doc2 = new Document("Ticket_Pesaje_EXP-2026-001.pdf", "TICKET_PESAJE", "https://exportrace-docs.s3.amazonaws.com/PESAJE-001.pdf", "Renzo Alva", savedLot);
+            documentRepository.save(doc2);
+
             // Sanitary Certification
             SanitaryCertification cert = new SanitaryCertification();
             cert.setLote(savedLot);

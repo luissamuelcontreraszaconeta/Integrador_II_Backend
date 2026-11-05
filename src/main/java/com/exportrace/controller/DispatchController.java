@@ -16,7 +16,7 @@ public class DispatchController {
     private DispatchService dispatchService;
 
     @GetMapping("/lot/{lotId}")
-    @PreAuthorize("hasAnyRole('LOGISTICA', 'ADMINISTRADOR', 'SUPERADMIN', 'QA', 'GERENCIA')")
+    @PreAuthorize("hasAuthority('DISPATCH_VIEW') or hasAuthority('LOTS_VIEW') or hasAnyRole('LOGISTICA', 'ADMINISTRADOR', 'SUPERADMIN', 'QA', 'GERENCIA', 'PRODUCCION')")
     public ResponseEntity<Dispatch> getDispatchByLotId(@PathVariable Long lotId) {
         Dispatch dispatch = dispatchService.getDispatchByLotId(lotId);
         if (dispatch == null) return ResponseEntity.notFound().build();

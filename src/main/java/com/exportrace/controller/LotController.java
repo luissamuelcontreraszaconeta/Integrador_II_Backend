@@ -10,6 +10,7 @@ import com.exportrace.service.LotService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,16 +27,19 @@ public class LotController {
     private LotHistoryRepository lotHistoryRepository;
 
     @GetMapping
+    @PreAuthorize("hasAuthority('LOTS_VIEW') or hasAnyRole('SUPERADMIN', 'ADMINISTRADOR')")
     public ResponseEntity<List<LotDTO>> getAllLots() {
         return ResponseEntity.ok(lotService.getAllLots());
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('LOTS_VIEW') or hasAnyRole('SUPERADMIN', 'ADMINISTRADOR')")
     public ResponseEntity<LotDTO> getLotById(@PathVariable Long id) {
         return ResponseEntity.ok(lotService.getLotById(id));
     }
 
     @GetMapping("/code/{code}")
+    @PreAuthorize("hasAuthority('LOTS_VIEW') or hasAnyRole('SUPERADMIN', 'ADMINISTRADOR')")
     public ResponseEntity<LotDTO> getLotByCode(@PathVariable String code) {
         return ResponseEntity.ok(lotService.getLotByCode(code));
     }
@@ -46,6 +50,7 @@ public class LotController {
     }
 
     @PostMapping
+    @PreAuthorize("(hasAuthority('LOTS_CREATE') or hasAnyRole('PRODUCCION', 'ADMINISTRADOR', 'SUPERADMIN')) and !hasAnyRole('QA', 'LOGISTICA', 'GERENCIA')")
     public ResponseEntity<LotDTO> createLot(@Valid @RequestBody CreateLotRequest request, Authentication authentication) {
         String email = authentication != null ? authentication.getName() : "produccion@exportrace.pe";
         LotDTO created = lotService.createLot(request, email);
@@ -53,6 +58,7 @@ public class LotController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("(hasAuthority('LOTS_UPDATE') or hasAnyRole('PRODUCCION', 'ADMINISTRADOR', 'SUPERADMIN')) and !hasAnyRole('QA', 'LOGISTICA', 'GERENCIA')")
     public ResponseEntity<LotDTO> updateLot(
             @PathVariable Long id,
             @Valid @RequestBody UpdateLotRequest request,
@@ -63,6 +69,7 @@ public class LotController {
     }
 
     @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('LOTS_UPDATE') or hasAnyRole('PRODUCCION', 'QA', 'LOGISTICA', 'ADMINISTRADOR', 'SUPERADMIN')")
     public ResponseEntity<LotDTO> updateLotStatus(
             @PathVariable Long id,
             @RequestBody LotStatusUpdateRequest request,
@@ -73,6 +80,7 @@ public class LotController {
     }
 
     @GetMapping("/{id}/history")
+    @PreAuthorize("hasAuthority('LOTS_VIEW') or hasAnyRole('SUPERADMIN', 'ADMINISTRADOR')")
     public ResponseEntity<List<LotHistory>> getLotHistory(@PathVariable Long id) {
         return ResponseEntity.ok(lotHistoryRepository.findByLoteIdOrderByFechaCambioDesc(id));
     }

@@ -1,16 +1,20 @@
 package com.exportrace.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "sanitary_certifications")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class SanitaryCertification {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @JsonIgnore
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lote_id", nullable = false, unique = true)
     private Lot lote;
@@ -51,6 +55,14 @@ public class SanitaryCertification {
 
     public Lot getLote() { return lote; }
     public void setLote(Lot lote) { this.lote = lote; }
+
+    public String getLotId() {
+        return lote != null && lote.getId() != null ? String.valueOf(lote.getId()) : null;
+    }
+
+    public String getLotCode() {
+        return lote != null ? lote.getCodigo() : null;
+    }
 
     public String getNumeroCertificado() { return numeroCertificado; }
     public void setNumeroCertificado(String numeroCertificado) { this.numeroCertificado = numeroCertificado; }
