@@ -239,4 +239,51 @@ public class SecurityRbacIntegrationTest {
                         .content("{}"))
                 .andExpect(result -> assertTrue(result.getResponse().getStatus() == 401 || result.getResponse().getStatus() == 403));
     }
+
+    @Test
+    @DisplayName("QR-PUB-01: Endpoint público GET /api/public/traceability/verify/{token} funciona sin JWT y devuelve solo datos públicos sanitizados")
+    void testPublicQrVerification_ValidToken_SanitizedResponseWithoutJwt() throws Exception {
+        String body = mockMvc.perform(get("/api/public/traceability/verify/" + testLot.getQrToken())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid").value(true))
+                .andExpect(jsonPath("$.authentic").value(true))
+                .andExpect(jsonPath("$.lotCode").value(testLot.getCodigo()))
+                .andExpect(jsonPath("$.codigo").value(testLot.getCodigo()))
+                .andExpect(jsonPath("$.estadoCadenaFrio").value("CONFORME"))
+                .andExpect(jsonPath("$.estadoDespacho").exists())
+                .andExpect(jsonPath("$.fechaRelevante").exists())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // Verificar que NO se expongan campos sensibles (correos, passwords, nombres de inspectores, rutas internas)
+        assertFalse(body.contains("password"), "No debe exponer passwords");
+        assertFalse(body.contains("@exportrace.pe"), "No debe exponer correos internos");
+        assertFalse(body.contains("QA Frío"), "No debe exponer nombres de responsables internos");
+        assertFalse(body.contains("/app/data/uploads"), "No debe exponer rutas internas de archivos");
+    }
+
+    @Test
+    @DisplayName("QR-PUB-02: Endpoint público GET /api/public/traceability/verify/{token} con token inválido devuelve 404 controlado")
+    void testPublicQrVerification_InvalidToken_ReturnsControlled404() throws Exception {
+        mockMvc.perform(get("/api/public/traceability/verify/token-invalido-inexistente-000")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.valid").value(false))
+                .andExpect(jsonPath("$.authentic").value(false))
+                .andExpect(jsonPath("$.mensaje").value("No se encontró un registro válido para este código."));
+    }
+
+    @Test
+    @DisplayName("QR-PUB-03: Endpoint público de trazabilidad es estrictamente READ-ONLY y bloquea escrituras anónimas")
+    void testPublicQrVerification_WriteAttemptBlocked() throws Exception {
+        mockMvc.perform(post("/api/public/traceability/verify/" + testLot.getQrToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(result -> {
+                    int st = result.getResponse().getStatus();
+                    assertTrue(st == 401 || st == 403 || st == 405);
+                });
+    }
 }

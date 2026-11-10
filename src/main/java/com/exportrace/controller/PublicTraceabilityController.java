@@ -6,6 +6,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Controlador público READ-ONLY para verificación de autenticidad y trazabilidad mediante código QR.
+ * No requiere autenticación JWT y expone únicamente el DTO público sanitizado.
+ */
 @RestController
 @RequestMapping("/api/public/traceability")
 public class PublicTraceabilityController {
@@ -13,10 +17,19 @@ public class PublicTraceabilityController {
     @Autowired
     private LotService lotService;
 
+    @GetMapping("/verify/{token}")
+    public ResponseEntity<PublicTraceabilityDTO> verifyPublicTraceabilityByToken(@PathVariable String token) {
+        return resolveTraceabilityResponse(token);
+    }
+
     @GetMapping("/{token}")
     public ResponseEntity<PublicTraceabilityDTO> getPublicTraceabilityByToken(@PathVariable String token) {
+        return resolveTraceabilityResponse(token);
+    }
+
+    private ResponseEntity<PublicTraceabilityDTO> resolveTraceabilityResponse(String token) {
         if (token == null || token.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(PublicTraceabilityDTO.notFound());
+            return ResponseEntity.status(404).body(PublicTraceabilityDTO.notFound());
         }
 
         try {

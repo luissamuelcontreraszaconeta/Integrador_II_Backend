@@ -1044,7 +1044,8 @@ public class JiraServiceRequestService {
                 || norm.contains("ESPERANDO POR EL CLIENTE")) {
             return ServiceRequestStatus.IN_REVIEW;
         }
-        if (norm.contains("TAREAS POR HACER") || norm.equals("TO DO") || norm.equals("OPEN") || norm.equals("ABIERTO")) {
+        if (norm.contains("SOLICITUD REGISTRADA") || norm.equals("REGISTRADA") || norm.equals("REGISTERED")
+                || norm.contains("TAREAS POR HACER") || norm.equals("TO DO") || norm.equals("OPEN") || norm.equals("ABIERTO")) {
             if (requiresApproval && "APPROVED".equalsIgnoreCase(approvalStatus)) {
                 return ServiceRequestStatus.IN_PROGRESS;
             }
@@ -1055,8 +1056,14 @@ public class JiraServiceRequestService {
         if ("DONE".equals(catNorm)) {
             return ServiceRequestStatus.COMPLETED;
         }
-        if ("INDETERMINATE".equals(catNorm)) {
+        if ("INDETERMINATE".equals(catNorm) || "IN PROGRESS".equals(catNorm)) {
             return ServiceRequestStatus.IN_PROGRESS;
+        }
+        if ("NEW".equals(catNorm) || "TO DO".equals(catNorm)) {
+            if (requiresApproval && "APPROVED".equalsIgnoreCase(approvalStatus)) {
+                return ServiceRequestStatus.IN_PROGRESS;
+            }
+            return ServiceRequestStatus.REGISTERED;
         }
         if (requiresApproval && "APPROVED".equalsIgnoreCase(approvalStatus)) {
             return ServiceRequestStatus.IN_PROGRESS;
@@ -1077,12 +1084,16 @@ public class JiraServiceRequestService {
         }
 
         String statusNorm = normalizeOptionKey(rawJiraStatus);
-        if (statusNorm.contains("RECHAZAD") || statusNorm.contains("DECLINED") || statusNorm.contains("REJECTED")) {
+        if (statusNorm.contains("RECHAZAD") || statusNorm.contains("DECLINED") || statusNorm.contains("REJECTED")
+                || statusNorm.contains("CANCELAD") || statusNorm.contains("CANCELED")) {
             return "REJECTED";
         }
-        if (statusNorm.equals("APROBADA") || statusNorm.contains("EN IMPLEMENTACION")
+        if (statusNorm.equals("APROBADA") || statusNorm.equals("APPROVED") || statusNorm.equals("APROBADO")
+                || statusNorm.contains("EN IMPLEMENTACION") || statusNorm.contains("EN CURSO")
+                || statusNorm.contains("IN PROGRESS") || statusNorm.contains("EN PROGRESO")
                 || statusNorm.contains("COMPLETAD") || statusNorm.contains("FINALIZAD")
-                || statusNorm.contains("RESUELT") || statusNorm.equals("DONE")) {
+                || statusNorm.contains("RESUELT") || statusNorm.contains("RESOLVED")
+                || statusNorm.equals("DONE") || statusNorm.equals("CLOSED") || statusNorm.equals("CERRADA")) {
             return "APPROVED";
         }
         return "PENDING_APPROVAL";
