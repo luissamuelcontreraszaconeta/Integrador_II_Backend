@@ -37,6 +37,21 @@ public class JiraProperties {
     @Value("${jira.exportrace-code-field-id:}")
     private String exportraceCodeFieldId = "";
 
+    @Value("${jira.sr-inf-01.request-type-id:10116}")
+    private String srInf01RequestTypeId = "10116";
+
+    @Value("${jira.sr-inf-01.lot-code-field-id:customfield_10263}")
+    private String srInf01LotCodeFieldId = "customfield_10263";
+
+    @Value("${jira.sr-inf-01.requested-info-field-id:customfield_10264}")
+    private String srInf01RequestedInfoFieldId = "customfield_10264";
+
+    @Value("${jira.sr-inf-01.additional-detail-field-id:customfield_10265}")
+    private String srInf01AdditionalDetailFieldId = "customfield_10265";
+
+    @Value("${jira.sr-inf-01.correlation-field-id:customfield_10266}")
+    private String srInf01CorrelationFieldId = "customfield_10266";
+
     @Value("${jira.connect-timeout-seconds:5}")
     private int connectTimeoutSeconds = 5;
 
@@ -105,6 +120,46 @@ public class JiraProperties {
 
     public void setExportraceCodeFieldId(String exportraceCodeFieldId) {
         this.exportraceCodeFieldId = exportraceCodeFieldId;
+    }
+
+    public String getSrInf01RequestTypeId() {
+        return srInf01RequestTypeId;
+    }
+
+    public void setSrInf01RequestTypeId(String srInf01RequestTypeId) {
+        this.srInf01RequestTypeId = srInf01RequestTypeId;
+    }
+
+    public String getSrInf01LotCodeFieldId() {
+        return srInf01LotCodeFieldId;
+    }
+
+    public void setSrInf01LotCodeFieldId(String srInf01LotCodeFieldId) {
+        this.srInf01LotCodeFieldId = srInf01LotCodeFieldId;
+    }
+
+    public String getSrInf01RequestedInfoFieldId() {
+        return srInf01RequestedInfoFieldId;
+    }
+
+    public void setSrInf01RequestedInfoFieldId(String srInf01RequestedInfoFieldId) {
+        this.srInf01RequestedInfoFieldId = srInf01RequestedInfoFieldId;
+    }
+
+    public String getSrInf01AdditionalDetailFieldId() {
+        return srInf01AdditionalDetailFieldId;
+    }
+
+    public void setSrInf01AdditionalDetailFieldId(String srInf01AdditionalDetailFieldId) {
+        this.srInf01AdditionalDetailFieldId = srInf01AdditionalDetailFieldId;
+    }
+
+    public String getSrInf01CorrelationFieldId() {
+        return srInf01CorrelationFieldId;
+    }
+
+    public void setSrInf01CorrelationFieldId(String srInf01CorrelationFieldId) {
+        this.srInf01CorrelationFieldId = srInf01CorrelationFieldId;
     }
 
     public int getConnectTimeoutSeconds() {
