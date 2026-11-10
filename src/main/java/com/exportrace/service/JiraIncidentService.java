@@ -628,6 +628,65 @@ public class JiraIncidentService {
         return str != null ? str : "—";
     }
 
+    /**
+     * Mapeo compatible con el workflow actual y el modelo objetivo de Incidencias (Bloque 3.1):
+     * - REPORTADA / Tareas por hacer / To Do -> REPORTED
+     * - EN TRIAJE / Triaje -> TRIAGE
+     * - EN PROGRESO / En curso / In Progress -> IN_PROGRESS
+     * - EN ESPERA DEL USUARIO / Esperando por el cliente / Pending -> WAITING_USER
+     * - ESCALADA / Escalated -> ESCALATED
+     * - RESUELTA / Resolved -> RESOLVED
+     * - CERRADA / Finalizada / Closed / Done -> CLOSED
+     * - REABIERTA / Reopened -> REOPENED
+     * Con respaldo semántico por statusCategory (NEW/To Do, INDETERMINATE/In Progress, DONE/Done).
+     */
+    public com.exportrace.entity.enums.IncidentStatus mapJiraIncidentStatusToLocal(String rawJiraStatus, String statusCategory) {
+        String norm = normalizeStatusKey(rawJiraStatus);
+
+        if (norm.contains("REABIERT") || norm.contains("REOPEN")) {
+            return com.exportrace.entity.enums.IncidentStatus.REOPENED;
+        }
+        if (norm.contains("CERRAD") || norm.contains("FINALIZAD") || norm.equals("CLOSED") || norm.equals("DONE") || norm.contains("CANCELAD")) {
+            return com.exportrace.entity.enums.IncidentStatus.CLOSED;
+        }
+        if (norm.contains("RESUELT") || norm.contains("RESOLVED")) {
+            return com.exportrace.entity.enums.IncidentStatus.RESOLVED;
+        }
+        if (norm.contains("ESCALAD") || norm.contains("ESCALAT")) {
+            return com.exportrace.entity.enums.IncidentStatus.ESCALATED;
+        }
+        if (norm.contains("ESPERA DEL USUARIO") || norm.contains("ESPERANDO POR EL CLIENTE")
+                || norm.contains("WAITING FOR CUSTOMER") || norm.contains("WAITING USER") || norm.equals("PENDING")) {
+            return com.exportrace.entity.enums.IncidentStatus.WAITING_USER;
+        }
+        if (norm.contains("TRIAJE") || norm.contains("TRIAGE") || norm.contains("ESPERANDO POR AYUDA") || norm.contains("WAITING FOR SUPPORT")) {
+            return com.exportrace.entity.enums.IncidentStatus.TRIAGE;
+        }
+        if (norm.contains("EN PROGRESO") || norm.contains("EN CURSO") || norm.contains("IN PROGRESS")) {
+            return com.exportrace.entity.enums.IncidentStatus.IN_PROGRESS;
+        }
+        if (norm.contains("REPORTAD") || norm.contains("TAREAS POR HACER") || norm.equals("TO DO") || norm.equals("OPEN")) {
+            return com.exportrace.entity.enums.IncidentStatus.REPORTED;
+        }
+
+        String catNorm = normalizeStatusKey(statusCategory);
+        if ("DONE".equals(catNorm)) {
+            return com.exportrace.entity.enums.IncidentStatus.CLOSED;
+        }
+        if ("INDETERMINATE".equals(catNorm) || "IN PROGRESS".equals(catNorm)) {
+            return com.exportrace.entity.enums.IncidentStatus.IN_PROGRESS;
+        }
+        return com.exportrace.entity.enums.IncidentStatus.REPORTED;
+    }
+
+    private String normalizeStatusKey(String input) {
+        if (input == null) {
+            return "";
+        }
+        String decomposed = java.text.Normalizer.normalize(input.trim(), java.text.Normalizer.Form.NFD);
+        return decomposed.replaceAll("\\p{InCombiningDiacriticalMarks}+", "").toUpperCase(Locale.ROOT);
+    }
+
     // =========================================================================
     // Objetos de resultado normalizados
     // =========================================================================

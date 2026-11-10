@@ -45,6 +45,7 @@ public class LotController {
     }
 
     @GetMapping("/qr/{token}")
+    @PreAuthorize("hasAuthority('LOTS_VIEW') or hasAnyRole('SUPERADMIN', 'ADMINISTRADOR')")
     public ResponseEntity<LotDTO> getLotByQrToken(@PathVariable String token) {
         return ResponseEntity.ok(lotService.getLotByQrToken(token));
     }

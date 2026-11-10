@@ -46,9 +46,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/public/traceability/**").permitAll()
-                .requestMatchers("/api/lots/qr/**").permitAll()
-                .requestMatchers("/api/lots/expediente/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/public/traceability/verify/**", "/api/public/traceability/**").permitAll()
                 .requestMatchers("/api/health").permitAll()
                 .requestMatchers("/error").permitAll()
                 // All other endpoints require authentication with JWT

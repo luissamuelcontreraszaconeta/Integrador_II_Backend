@@ -82,16 +82,32 @@ public class LotService {
     }
 
     public PublicTraceabilityDTO getPublicTraceability(String qrToken) {
-        Lot lot = lotRepository.findByQrToken(qrToken)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Código de trazabilidad no encontrado: " + qrToken));
+        String cleanToken = qrToken != null ? qrToken.trim() : "";
+        if (cleanToken.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Código de trazabilidad inválido.");
+        }
 
-        QualityInspection qa = qualityRepository.findByLoteId(lot.getId()).orElse(null);
+        Lot lot = lotRepository.findByQrToken(cleanToken).orElseGet(() -> {
+            // Compatibilidad controlada por si se escanea un QR impreso con el token legado de EXP-2026-001
+            if ("EXP2026001HASH98412089421".equalsIgnoreCase(cleanToken)) {
+                return lotRepository.findByCodigo("EXP-2026-001").orElse(null);
+            }
+            return null;
+        });
+
+        if (lot == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Código de trazabilidad no encontrado: " + cleanToken);
+        }
+
+        List<QualityInspection> inspections = qualityRepository.findByLoteIdOrderByNumeroInspeccionAsc(lot.getId());
+        QualityInspection qa = inspections.isEmpty() ? null : inspections.get(inspections.size() - 1);
         SanitaryCertification cert = certificationRepository.findByLoteId(lot.getId()).orElse(null);
+        Dispatch dispatch = dispatchRepository.findByLoteId(lot.getId()).orElse(null);
         List<ColdChainRecord> coldRecords = coldChainRepository.findByLoteIdOrderByFechaHoraDesc(lot.getId());
         boolean hasCriticalCold = coldRecords.stream().anyMatch(c -> "CRITICAL".equalsIgnoreCase(c.getEstadoMedicion()));
         int docCount = documentRepository.findByLoteId(lot.getId()).size();
 
-        return new PublicTraceabilityDTO(lot, qa, cert, coldRecords.size(), hasCriticalCold, docCount);
+        return new PublicTraceabilityDTO(lot, qa, cert, dispatch, coldRecords, hasCriticalCold, docCount);
     }
 
     @Transactional
@@ -180,8 +196,8 @@ public class LotService {
         lot.setInspeccionadoPor(req.getInspeccionadoPor() != null ? req.getInspeccionadoPor() : "Operaciones Planta");
         lot.setObservaciones(req.getObservaciones());
 
-        // Generate deterministic non-random QR token
-        String qrToken = generateQrHash(code, System.currentTimeMillis());
+        // Generar token opaco UUID v4 criptográficamente aleatorio (sin exponer código ni ID interno)
+        String qrToken = generateSecureQrToken();
         lot.setQrToken(qrToken);
 
         Lot savedLot;
@@ -464,13 +480,11 @@ public class LotService {
         return dto;
     }
 
-    private String generateQrHash(String code, long timestamp) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest((code + "-" + timestamp).getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash).substring(0, 24);
-        } catch (Exception e) {
-            return "QR-" + System.currentTimeMillis();
-        }
+    private String generateSecureQrToken() {
+        String token;
+        do {
+            token = java.util.UUID.randomUUID().toString();
+        } while (lotRepository.findByQrToken(token).isPresent());
+        return token;
     }
 }

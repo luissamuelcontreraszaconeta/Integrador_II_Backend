@@ -154,6 +154,14 @@ public class DatabaseMigrationConfig {
             stmt.execute("ALTER TABLE lots ADD COLUMN version BIGINT DEFAULT 0;");
             stmt.execute("UPDATE lots SET version = 0 WHERE version IS NULL;");
         }
+
+        // Migrar token QR simulado legado hacia UUID opaco verificable para el lote semilla EXP-2026-001
+        stmt.execute("""
+            UPDATE lots
+            SET qr_token = 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
+            WHERE codigo = 'EXP-2026-001'
+              AND (qr_token IS NULL OR qr_token = '' OR qr_token = 'EXP2026001HASH98412089421');
+        """);
     }
 
     private void migrateNotificationsTable(Statement stmt) throws Exception {

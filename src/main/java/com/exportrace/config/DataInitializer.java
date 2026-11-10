@@ -172,7 +172,7 @@ public class DataInitializer implements CommandLineRunner {
             lot.setFechaVencimiento(LocalDate.of(2028, 8, 20));
             lot.setInspeccionadoPor("Renzo Alva");
             lot.setObservaciones("Materia prima de primera frescura, captura nocturna con potera.");
-            lot.setQrToken("EXP2026001HASH98412089421");
+            lot.setQrToken("f47ac10b-58cc-4372-a567-0e02b2c3d479");
 
             Lot savedLot = lotRepository.save(lot);
 

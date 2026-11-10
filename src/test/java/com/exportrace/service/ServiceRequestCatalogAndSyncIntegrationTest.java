@@ -853,4 +853,46 @@ public class ServiceRequestCatalogAndSyncIntegrationTest {
                 .andExpect(jsonPath("$.jiraStatus").value("COMPLETADA"));
         mockJiraServer.verify();
     }
+
+    @Test
+    @DisplayName("WORKFLOW-COMPAT-01: Compatibilidad de mapeo con estados actuales y modelo objetivo de Workflows Jira (3.1, 3.2 y 3.3)")
+    void workflowCompat01_jiraWorkflowTargetAndCurrentStatusesMapCleanly() {
+        // 3.2 Solicitudes directas
+        assertEquals(com.exportrace.entity.enums.ServiceRequestStatus.REGISTERED,
+                jiraServiceRequestService.mapJiraStatusToLocal("SOLICITUD REGISTRADA", "INDETERMINATE", "NOT_REQUIRED", false));
+        assertEquals(com.exportrace.entity.enums.ServiceRequestStatus.IN_REVIEW,
+                jiraServiceRequestService.mapJiraStatusToLocal("EN REVISIÓN", "INDETERMINATE", "NOT_REQUIRED", false));
+        assertEquals(com.exportrace.entity.enums.ServiceRequestStatus.IN_PROGRESS,
+                jiraServiceRequestService.mapJiraStatusToLocal("EN IMPLEMENTACIÓN", "INDETERMINATE", "NOT_REQUIRED", false));
+        assertEquals(com.exportrace.entity.enums.ServiceRequestStatus.COMPLETED,
+                jiraServiceRequestService.mapJiraStatusToLocal("COMPLETADA", "DONE", "NOT_REQUIRED", false));
+
+        // 3.3 Solicitudes con aprobación
+        assertEquals(com.exportrace.entity.enums.ServiceRequestStatus.PENDING_APPROVAL,
+                jiraServiceRequestService.mapJiraStatusToLocal("PENDIENTE DE APROBACIÓN", "INDETERMINATE", "PENDING_APPROVAL", true));
+        assertEquals(com.exportrace.entity.enums.ServiceRequestStatus.IN_PROGRESS,
+                jiraServiceRequestService.mapJiraStatusToLocal("EN IMPLEMENTACIÓN", "INDETERMINATE", "APPROVED", true));
+        assertEquals(com.exportrace.entity.enums.ServiceRequestStatus.REJECTED,
+                jiraServiceRequestService.mapJiraStatusToLocal("RECHAZADA", "DONE", "REJECTED", true));
+        assertEquals(com.exportrace.entity.enums.ServiceRequestStatus.REJECTED,
+                jiraServiceRequestService.mapJiraStatusToLocal("COMPLETADA", "DONE", "REJECTED", true));
+
+        // 3.1 Incidentes
+        assertEquals(com.exportrace.entity.enums.IncidentStatus.REPORTED,
+                jiraIncidentService.mapJiraIncidentStatusToLocal("REPORTADA", "NEW"));
+        assertEquals(com.exportrace.entity.enums.IncidentStatus.TRIAGE,
+                jiraIncidentService.mapJiraIncidentStatusToLocal("EN TRIAJE", "INDETERMINATE"));
+        assertEquals(com.exportrace.entity.enums.IncidentStatus.IN_PROGRESS,
+                jiraIncidentService.mapJiraIncidentStatusToLocal("EN PROGRESO", "INDETERMINATE"));
+        assertEquals(com.exportrace.entity.enums.IncidentStatus.WAITING_USER,
+                jiraIncidentService.mapJiraIncidentStatusToLocal("EN ESPERA DEL USUARIO", "INDETERMINATE"));
+        assertEquals(com.exportrace.entity.enums.IncidentStatus.ESCALATED,
+                jiraIncidentService.mapJiraIncidentStatusToLocal("ESCALADA", "INDETERMINATE"));
+        assertEquals(com.exportrace.entity.enums.IncidentStatus.RESOLVED,
+                jiraIncidentService.mapJiraIncidentStatusToLocal("RESUELTA", "DONE"));
+        assertEquals(com.exportrace.entity.enums.IncidentStatus.CLOSED,
+                jiraIncidentService.mapJiraIncidentStatusToLocal("CERRADA", "DONE"));
+        assertEquals(com.exportrace.entity.enums.IncidentStatus.REOPENED,
+                jiraIncidentService.mapJiraIncidentStatusToLocal("REABIERTA", "INDETERMINATE"));
+    }
 }
