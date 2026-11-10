@@ -62,13 +62,91 @@ public class ServiceRequest {
     private String summary;
 
     @Column(name = "lot_code", nullable = false, length = 60)
-    private String lotCode;
+    private String lotCode = "";
 
     @Column(name = "requested_information", nullable = false, columnDefinition = "TEXT")
-    private String requestedInformation;
+    private String requestedInformation = "";
 
     @Column(name = "additional_detail", columnDefinition = "TEXT")
     private String additionalDetail;
+
+    @Column(name = "document_query_type", length = 120)
+    private String documentQueryType;
+
+    @Column(name = "observed_field", length = 200)
+    private String observedField;
+
+    @Column(name = "problem_description", columnDefinition = "TEXT")
+    private String problemDescription;
+
+    @Column(name = "field_to_correct", length = 200)
+    private String fieldToCorrect;
+
+    @Column(name = "current_value", columnDefinition = "TEXT")
+    private String currentValue;
+
+    @Column(name = "proposed_value", columnDefinition = "TEXT")
+    private String proposedValue;
+
+    @Column(name = "justification", columnDefinition = "TEXT")
+    private String justification;
+
+    @Column(name = "worker_name", length = 150)
+    private String workerName;
+
+    @Column(name = "affected_user", length = 150)
+    private String affectedUser;
+
+    @Column(name = "institutional_email", length = 150)
+    private String institutionalEmail;
+
+    @Column(name = "area", length = 100)
+    private String area;
+
+    @Column(name = "required_role", length = 100)
+    private String requiredRole;
+
+    @Column(name = "access_request_type", length = 100)
+    private String accessRequestType;
+
+    @Column(name = "current_role_field", length = 100)
+    private String currentRoleField;
+
+    @Column(name = "required_permissions", length = 150)
+    private String requiredPermissions;
+
+    @Column(name = "reason", columnDefinition = "TEXT")
+    private String reason;
+
+    @Column(name = "requires_approval")
+    private Boolean requiresApproval = Boolean.FALSE;
+
+    @Column(name = "approval_status", length = 40)
+    private String approvalStatus = "NOT_REQUIRED";
+
+    @Column(name = "jira_status", length = 100)
+    private String jiraStatus;
+
+    @Column(name = "jira_sla_summary", length = 255)
+    private String jiraSlaSummary;
+
+    @Column(name = "attachment_original_name", length = 255)
+    private String attachmentOriginalName;
+
+    @Column(name = "attachment_stored_path", length = 500)
+    private String attachmentStoredPath;
+
+    @Column(name = "attachment_mime_type", length = 100)
+    private String attachmentMimeType;
+
+    @Column(name = "attachment_size")
+    private Long attachmentSize;
+
+    @Column(name = "attachment_sha256", length = 64)
+    private String attachmentSha256;
+
+    @Column(name = "jira_attachment_synced")
+    private Boolean jiraAttachmentSynced = Boolean.FALSE;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
@@ -121,6 +199,9 @@ public class ServiceRequest {
         this.syncAttempts = 0;
         this.slaTarget = "4 horas hábiles";
         this.slaAuthority = "LOCAL_ESTIMATE";
+        this.requiresApproval = Boolean.FALSE;
+        this.approvalStatus = "NOT_REQUIRED";
+        this.jiraAttachmentSynced = Boolean.FALSE;
     }
 
     @PrePersist
@@ -147,11 +228,32 @@ public class ServiceRequest {
         if (this.slaAuthority == null) {
             this.slaAuthority = "LOCAL_ESTIMATE";
         }
+        if (this.lotCode == null) {
+            this.lotCode = "";
+        }
+        if (this.requestedInformation == null) {
+            this.requestedInformation = this.summary != null ? this.summary : "";
+        }
+        if (this.requiresApproval == null) {
+            this.requiresApproval = Boolean.FALSE;
+        }
+        if (this.approvalStatus == null) {
+            this.approvalStatus = Boolean.TRUE.equals(this.requiresApproval) ? "PENDING_APPROVAL" : "NOT_REQUIRED";
+        }
+        if (this.jiraAttachmentSynced == null) {
+            this.jiraAttachmentSynced = Boolean.FALSE;
+        }
     }
 
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
+        if (this.lotCode == null) {
+            this.lotCode = "";
+        }
+        if (this.requestedInformation == null) {
+            this.requestedInformation = this.summary != null ? this.summary : "";
+        }
     }
 
     public Long getId() { return id; }
@@ -198,6 +300,84 @@ public class ServiceRequest {
 
     public String getAdditionalDetail() { return additionalDetail; }
     public void setAdditionalDetail(String additionalDetail) { this.additionalDetail = additionalDetail; }
+
+    public String getDocumentQueryType() { return documentQueryType; }
+    public void setDocumentQueryType(String documentQueryType) { this.documentQueryType = documentQueryType; }
+
+    public String getObservedField() { return observedField; }
+    public void setObservedField(String observedField) { this.observedField = observedField; }
+
+    public String getProblemDescription() { return problemDescription; }
+    public void setProblemDescription(String problemDescription) { this.problemDescription = problemDescription; }
+
+    public String getFieldToCorrect() { return fieldToCorrect; }
+    public void setFieldToCorrect(String fieldToCorrect) { this.fieldToCorrect = fieldToCorrect; }
+
+    public String getCurrentValue() { return currentValue; }
+    public void setCurrentValue(String currentValue) { this.currentValue = currentValue; }
+
+    public String getProposedValue() { return proposedValue; }
+    public void setProposedValue(String proposedValue) { this.proposedValue = proposedValue; }
+
+    public String getJustification() { return justification; }
+    public void setJustification(String justification) { this.justification = justification; }
+
+    public String getWorkerName() { return workerName; }
+    public void setWorkerName(String workerName) { this.workerName = workerName; }
+
+    public String getAffectedUser() { return affectedUser; }
+    public void setAffectedUser(String affectedUser) { this.affectedUser = affectedUser; }
+
+    public String getInstitutionalEmail() { return institutionalEmail; }
+    public void setInstitutionalEmail(String institutionalEmail) { this.institutionalEmail = institutionalEmail; }
+
+    public String getArea() { return area; }
+    public void setArea(String area) { this.area = area; }
+
+    public String getRequiredRole() { return requiredRole; }
+    public void setRequiredRole(String requiredRole) { this.requiredRole = requiredRole; }
+
+    public String getAccessRequestType() { return accessRequestType; }
+    public void setAccessRequestType(String accessRequestType) { this.accessRequestType = accessRequestType; }
+
+    public String getCurrentRoleField() { return currentRoleField; }
+    public void setCurrentRoleField(String currentRoleField) { this.currentRoleField = currentRoleField; }
+
+    public String getRequiredPermissions() { return requiredPermissions; }
+    public void setRequiredPermissions(String requiredPermissions) { this.requiredPermissions = requiredPermissions; }
+
+    public String getReason() { return reason; }
+    public void setReason(String reason) { this.reason = reason; }
+
+    public Boolean getRequiresApproval() { return requiresApproval; }
+    public void setRequiresApproval(Boolean requiresApproval) { this.requiresApproval = requiresApproval; }
+
+    public String getApprovalStatus() { return approvalStatus; }
+    public void setApprovalStatus(String approvalStatus) { this.approvalStatus = approvalStatus; }
+
+    public String getJiraStatus() { return jiraStatus; }
+    public void setJiraStatus(String jiraStatus) { this.jiraStatus = jiraStatus; }
+
+    public String getJiraSlaSummary() { return jiraSlaSummary; }
+    public void setJiraSlaSummary(String jiraSlaSummary) { this.jiraSlaSummary = jiraSlaSummary; }
+
+    public String getAttachmentOriginalName() { return attachmentOriginalName; }
+    public void setAttachmentOriginalName(String attachmentOriginalName) { this.attachmentOriginalName = attachmentOriginalName; }
+
+    public String getAttachmentStoredPath() { return attachmentStoredPath; }
+    public void setAttachmentStoredPath(String attachmentStoredPath) { this.attachmentStoredPath = attachmentStoredPath; }
+
+    public String getAttachmentMimeType() { return attachmentMimeType; }
+    public void setAttachmentMimeType(String attachmentMimeType) { this.attachmentMimeType = attachmentMimeType; }
+
+    public Long getAttachmentSize() { return attachmentSize; }
+    public void setAttachmentSize(Long attachmentSize) { this.attachmentSize = attachmentSize; }
+
+    public String getAttachmentSha256() { return attachmentSha256; }
+    public void setAttachmentSha256(String attachmentSha256) { this.attachmentSha256 = attachmentSha256; }
+
+    public Boolean getJiraAttachmentSynced() { return jiraAttachmentSynced; }
+    public void setJiraAttachmentSynced(Boolean jiraAttachmentSynced) { this.jiraAttachmentSynced = jiraAttachmentSynced; }
 
     public ServiceRequestStatus getStatus() { return status; }
     public void setStatus(ServiceRequestStatus status) { this.status = status; }

@@ -503,9 +503,35 @@ public class DatabaseMigrationConfig {
                 requester_email VARCHAR(150) NOT NULL,
                 requester_role VARCHAR(50) NOT NULL,
                 summary VARCHAR(200) NOT NULL,
-                lot_code VARCHAR(60) NOT NULL,
-                requested_information TEXT NOT NULL,
+                lot_code VARCHAR(60) NOT NULL DEFAULT '',
+                requested_information TEXT NOT NULL DEFAULT '',
                 additional_detail TEXT,
+                document_query_type VARCHAR(120),
+                observed_field VARCHAR(200),
+                problem_description TEXT,
+                field_to_correct VARCHAR(200),
+                current_value TEXT,
+                proposed_value TEXT,
+                justification TEXT,
+                worker_name VARCHAR(150),
+                affected_user VARCHAR(150),
+                institutional_email VARCHAR(150),
+                area VARCHAR(100),
+                required_role VARCHAR(100),
+                access_request_type VARCHAR(100),
+                current_role_field VARCHAR(100),
+                required_permissions VARCHAR(150),
+                reason TEXT,
+                requires_approval BOOLEAN DEFAULT 0,
+                approval_status VARCHAR(40) DEFAULT 'NOT_REQUIRED',
+                jira_status VARCHAR(100),
+                jira_sla_summary VARCHAR(255),
+                attachment_original_name VARCHAR(255),
+                attachment_stored_path VARCHAR(500),
+                attachment_mime_type VARCHAR(100),
+                attachment_size BIGINT,
+                attachment_sha256 VARCHAR(64),
+                jira_attachment_synced BOOLEAN DEFAULT 0,
                 status VARCHAR(30) NOT NULL DEFAULT 'REGISTERED',
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -524,6 +550,155 @@ public class DatabaseMigrationConfig {
             );
         """);
 
+        List<String> existingCols = new ArrayList<>();
+        try (ResultSet rs = stmt.executeQuery("PRAGMA table_info(service_requests)")) {
+            while (rs.next()) {
+                existingCols.add(rs.getString("name").toLowerCase());
+            }
+        }
+
+        String[][] newCols = {
+            {"document_query_type", "VARCHAR(120)"},
+            {"observed_field", "VARCHAR(200)"},
+            {"problem_description", "TEXT"},
+            {"field_to_correct", "VARCHAR(200)"},
+            {"current_value", "TEXT"},
+            {"proposed_value", "TEXT"},
+            {"justification", "TEXT"},
+            {"worker_name", "VARCHAR(150)"},
+            {"affected_user", "VARCHAR(150)"},
+            {"institutional_email", "VARCHAR(150)"},
+            {"area", "VARCHAR(100)"},
+            {"required_role", "VARCHAR(100)"},
+            {"access_request_type", "VARCHAR(100)"},
+            {"current_role_field", "VARCHAR(100)"},
+            {"required_permissions", "VARCHAR(150)"},
+            {"reason", "TEXT"},
+            {"requires_approval", "BOOLEAN DEFAULT 0"},
+            {"approval_status", "VARCHAR(40) DEFAULT 'NOT_REQUIRED'"},
+            {"jira_status", "VARCHAR(100)"},
+            {"jira_sla_summary", "VARCHAR(255)"},
+            {"attachment_original_name", "VARCHAR(255)"},
+            {"attachment_stored_path", "VARCHAR(500)"},
+            {"attachment_mime_type", "VARCHAR(100)"},
+            {"attachment_size", "BIGINT"},
+            {"attachment_sha256", "VARCHAR(64)"},
+            {"jira_attachment_synced", "BOOLEAN DEFAULT 0"}
+        };
+
+        for (String[] col : newCols) {
+            if (!existingCols.contains(col[0])) {
+                stmt.execute("ALTER TABLE service_requests ADD COLUMN " + col[0] + " " + col[1] + ";");
+            }
+        }
+
+        // Si la tabla existente fue creada por Hibernate con un CHECK constraint antiguo sobre 'status'
+        // que no incluye 'IN_PROGRESS', 'RESOLVED' o 'REJECTED', reconstruir la tabla preservando los registros.
+        String tableSql = "";
+        try (ResultSet rsSql = stmt.executeQuery("SELECT sql FROM sqlite_master WHERE type='table' AND name='service_requests'")) {
+            if (rsSql.next() && rsSql.getString(1) != null) {
+                tableSql = rsSql.getString(1);
+            }
+        }
+        if (tableSql.toLowerCase().contains("check") && !tableSql.contains("REJECTED")) {
+            log.info("[DatabaseMigration] Updating CHECK constraint on 'service_requests.status' while preserving all rows...");
+            stmt.execute("BEGIN TRANSACTION;");
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS service_requests_canonical (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    code VARCHAR(30) NOT NULL,
+                    service_code VARCHAR(30) NOT NULL,
+                    service_title VARCHAR(200) NOT NULL,
+                    category_key VARCHAR(40) NOT NULL,
+                    category_label VARCHAR(100) NOT NULL,
+                    correlation_id VARCHAR(64) NOT NULL,
+                    requester_user_id BIGINT NOT NULL,
+                    requester_username VARCHAR(150) NOT NULL,
+                    requester_email VARCHAR(150) NOT NULL,
+                    requester_role VARCHAR(50) NOT NULL,
+                    summary VARCHAR(200) NOT NULL,
+                    lot_code VARCHAR(60) NOT NULL DEFAULT '',
+                    requested_information TEXT NOT NULL DEFAULT '',
+                    additional_detail TEXT,
+                    document_query_type VARCHAR(120),
+                    observed_field VARCHAR(200),
+                    problem_description TEXT,
+                    field_to_correct VARCHAR(200),
+                    current_value TEXT,
+                    proposed_value TEXT,
+                    justification TEXT,
+                    worker_name VARCHAR(150),
+                    affected_user VARCHAR(150),
+                    institutional_email VARCHAR(150),
+                    area VARCHAR(100),
+                    required_role VARCHAR(100),
+                    access_request_type VARCHAR(100),
+                    current_role_field VARCHAR(100),
+                    required_permissions VARCHAR(150),
+                    reason TEXT,
+                    requires_approval BOOLEAN DEFAULT 0,
+                    approval_status VARCHAR(40) DEFAULT 'NOT_REQUIRED',
+                    jira_status VARCHAR(100),
+                    jira_sla_summary VARCHAR(255),
+                    attachment_original_name VARCHAR(255),
+                    attachment_stored_path VARCHAR(500),
+                    attachment_mime_type VARCHAR(100),
+                    attachment_size BIGINT,
+                    attachment_sha256 VARCHAR(64),
+                    jira_attachment_synced BOOLEAN DEFAULT 0,
+                    status VARCHAR(30) NOT NULL DEFAULT 'REGISTERED',
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    sla_target VARCHAR(100) NOT NULL DEFAULT '4 horas hábiles',
+                    sla_authority VARCHAR(40) NOT NULL DEFAULT 'LOCAL_ESTIMATE',
+                    jira_issue_key VARCHAR(50),
+                    jira_request_id VARCHAR(50),
+                    jira_request_type_id VARCHAR(30),
+                    jira_last_sync_at TIMESTAMP,
+                    sync_status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+                    sync_attempts INTEGER NOT NULL DEFAULT 0,
+                    last_sync_error TEXT,
+                    version BIGINT DEFAULT 0,
+                    CONSTRAINT uk_service_request_code UNIQUE (code),
+                    CONSTRAINT uk_service_request_correlation_id UNIQUE (correlation_id)
+                );
+            """);
+            stmt.execute("""
+                INSERT INTO service_requests_canonical (
+                    id, code, service_code, service_title, category_key, category_label, correlation_id,
+                    requester_user_id, requester_username, requester_email, requester_role, summary,
+                    lot_code, requested_information, additional_detail,
+                    document_query_type, observed_field, problem_description,
+                    field_to_correct, current_value, proposed_value, justification,
+                    worker_name, affected_user, institutional_email, area, required_role,
+                    access_request_type, current_role_field, required_permissions, reason,
+                    requires_approval, approval_status, jira_status, jira_sla_summary,
+                    attachment_original_name, attachment_stored_path, attachment_mime_type, attachment_size, attachment_sha256, jira_attachment_synced,
+                    status, created_at, updated_at, sla_target, sla_authority,
+                    jira_issue_key, jira_request_id, jira_request_type_id, jira_last_sync_at,
+                    sync_status, sync_attempts, last_sync_error, version
+                )
+                SELECT
+                    id, code, service_code, service_title, category_key, category_label, correlation_id,
+                    requester_user_id, requester_username, requester_email, requester_role, summary,
+                    COALESCE(lot_code, ''), COALESCE(requested_information, ''), additional_detail,
+                    document_query_type, observed_field, problem_description,
+                    field_to_correct, current_value, proposed_value, justification,
+                    worker_name, affected_user, institutional_email, area, required_role,
+                    access_request_type, current_role_field, required_permissions, reason,
+                    COALESCE(requires_approval, 0), COALESCE(approval_status, 'NOT_REQUIRED'), jira_status, jira_sla_summary,
+                    attachment_original_name, attachment_stored_path, attachment_mime_type, attachment_size, attachment_sha256, COALESCE(jira_attachment_synced, 0),
+                    status, created_at, updated_at, sla_target, sla_authority,
+                    jira_issue_key, jira_request_id, jira_request_type_id, jira_last_sync_at,
+                    sync_status, sync_attempts, last_sync_error, COALESCE(version, 0)
+                FROM service_requests;
+            """);
+            stmt.execute("DROP TABLE service_requests;");
+            stmt.execute("ALTER TABLE service_requests_canonical RENAME TO service_requests;");
+            stmt.execute("COMMIT;");
+            log.info("[DatabaseMigration] Successfully updated 'service_requests' table schema.");
+        }
+
         stmt.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_uk_service_request_code ON service_requests(code);");
         stmt.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_uk_service_request_correlation_id ON service_requests(correlation_id);");
         stmt.execute("CREATE INDEX IF NOT EXISTS idx_sr_requester_user ON service_requests(requester_user_id);");
@@ -531,5 +706,22 @@ public class DatabaseMigrationConfig {
         stmt.execute("CREATE INDEX IF NOT EXISTS idx_sr_status ON service_requests(status);");
         stmt.execute("CREATE INDEX IF NOT EXISTS idx_sr_sync_status ON service_requests(sync_status);");
         stmt.execute("CREATE INDEX IF NOT EXISTS idx_sr_created_at ON service_requests(created_at);");
+
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS service_request_comments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                service_request_id BIGINT NOT NULL,
+                jira_comment_id VARCHAR(64) UNIQUE,
+                author_display_name VARCHAR(150) NOT NULL,
+                body TEXT NOT NULL,
+                public_comment BOOLEAN NOT NULL DEFAULT 1,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                source VARCHAR(30) NOT NULL DEFAULT 'JIRA',
+                CONSTRAINT uk_sr_comment_jira_id UNIQUE (jira_comment_id)
+            );
+        """);
+        stmt.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_uk_sr_comment_jira_id ON service_request_comments(jira_comment_id);");
+        stmt.execute("CREATE INDEX IF NOT EXISTS idx_sr_comment_request_id ON service_request_comments(service_request_id);");
+        stmt.execute("CREATE INDEX IF NOT EXISTS idx_sr_comment_created_at ON service_request_comments(created_at);");
     }
 }
