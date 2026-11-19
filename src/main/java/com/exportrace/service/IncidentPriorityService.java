@@ -31,13 +31,13 @@ public class IncidentPriorityService {
     }
 
     /**
-     * Matriz centralizada y determinística Impacto × Urgencia -> Prioridad:
+     * Matriz centralizada y determinística Impacto × Urgencia -> Prioridad (Alineada a Semana 14 UTP):
      * - HIGH + HIGH -> P1_CRITICAL
      * - HIGH + MEDIUM -> P2_HIGH
-     * - HIGH + LOW -> P2_HIGH
+     * - HIGH + LOW -> P3_MEDIUM
      * - MEDIUM + HIGH -> P2_HIGH
      * - MEDIUM + MEDIUM -> P3_MEDIUM
-     * - MEDIUM + LOW -> P3_MEDIUM
+     * - MEDIUM + LOW -> P4_LOW
      * - LOW + HIGH -> P3_MEDIUM
      * - LOW + MEDIUM -> P4_LOW
      * - LOW + LOW -> P4_LOW
@@ -53,11 +53,13 @@ public class IncidentPriorityService {
         return switch (impact) {
             case HIGH -> switch (urgency) {
                 case HIGH -> IncidentPriority.P1_CRITICAL;
-                case MEDIUM, LOW -> IncidentPriority.P2_HIGH;
+                case MEDIUM -> IncidentPriority.P2_HIGH;
+                case LOW -> IncidentPriority.P3_MEDIUM;
             };
             case MEDIUM -> switch (urgency) {
                 case HIGH -> IncidentPriority.P2_HIGH;
-                case MEDIUM, LOW -> IncidentPriority.P3_MEDIUM;
+                case MEDIUM -> IncidentPriority.P3_MEDIUM;
+                case LOW -> IncidentPriority.P4_LOW;
             };
             case LOW -> switch (urgency) {
                 case HIGH -> IncidentPriority.P3_MEDIUM;

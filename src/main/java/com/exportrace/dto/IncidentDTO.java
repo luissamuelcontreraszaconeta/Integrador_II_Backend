@@ -13,6 +13,7 @@ public class IncidentDTO {
 
     private Long id;
     private String code;
+    private String correlationId;
     private String category;
     private String categoryCode;
     private String categoryLabel;
@@ -20,6 +21,7 @@ public class IncidentDTO {
     private String description;
     private String impact;
     private String urgency;
+    private String workContinuity;
     private String priority;
     private String priorityLabel;
     private String status;
@@ -28,6 +30,17 @@ public class IncidentDTO {
     private String route;
     private Long relatedLotId;
     private String relatedLotCode;
+    private String source;
+    private String actionAttempted;
+    private Integer httpStatus;
+    private String errorCode;
+    private String technicalRequestId;
+    private String sanitizedErrorMessage;
+    private String attachmentOriginalName;
+    private String attachmentMimeType;
+    private Long attachmentSize;
+    private Boolean hasAttachment;
+    private Boolean jiraAttachmentSynced;
     private String reporterUsername;
     private String reporterRole;
     private LocalDateTime createdAt;
@@ -49,6 +62,7 @@ public class IncidentDTO {
     public IncidentDTO(IncidentReport entity) {
         this.id = entity.getId();
         this.code = entity.getCode();
+        this.correlationId = entity.getCorrelationId();
         if (entity.getCategory() != null) {
             this.category = entity.getCategory().name();
             this.categoryCode = entity.getCategory().getCatalogCode();
@@ -58,6 +72,7 @@ public class IncidentDTO {
         this.description = entity.getDescription();
         this.impact = entity.getImpact() != null ? entity.getImpact().name() : null;
         this.urgency = entity.getUrgency() != null ? entity.getUrgency().name() : null;
+        this.workContinuity = entity.getWorkContinuity() != null ? entity.getWorkContinuity().name() : null;
         if (entity.getPriority() != null) {
             this.priority = entity.getPriority().name();
             this.priorityLabel = entity.getPriority().getLabel();
@@ -71,7 +86,20 @@ public class IncidentDTO {
         if (entity.getRelatedLot() != null) {
             this.relatedLotId = entity.getRelatedLot().getId();
             this.relatedLotCode = entity.getRelatedLot().getCodigo();
+        } else if (entity.getLotCodeSnapshot() != null && !entity.getLotCodeSnapshot().isBlank()) {
+            this.relatedLotCode = entity.getLotCodeSnapshot();
         }
+        this.source = entity.getSource() != null ? entity.getSource() : "MANUAL_SUPPORT";
+        this.actionAttempted = entity.getActionAttempted();
+        this.httpStatus = entity.getHttpStatus();
+        this.errorCode = entity.getErrorCode();
+        this.technicalRequestId = entity.getTechnicalRequestId();
+        this.sanitizedErrorMessage = entity.getSanitizedErrorMessage();
+        this.attachmentOriginalName = entity.getAttachmentOriginalName();
+        this.attachmentMimeType = entity.getAttachmentMimeType();
+        this.attachmentSize = entity.getAttachmentSize();
+        this.hasAttachment = entity.getAttachmentStoredPath() != null && !entity.getAttachmentStoredPath().isBlank();
+        this.jiraAttachmentSynced = entity.getJiraAttachmentSynced();
         this.reporterUsername = entity.getReporterUsername();
         this.reporterRole = entity.getReporterRole();
         this.createdAt = entity.getCreatedAt();
@@ -97,6 +125,9 @@ public class IncidentDTO {
     public String getCode() { return code; }
     public void setCode(String code) { this.code = code; }
 
+    public String getCorrelationId() { return correlationId; }
+    public void setCorrelationId(String correlationId) { this.correlationId = correlationId; }
+
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
 
@@ -117,6 +148,9 @@ public class IncidentDTO {
 
     public String getUrgency() { return urgency; }
     public void setUrgency(String urgency) { this.urgency = urgency; }
+
+    public String getWorkContinuity() { return workContinuity; }
+    public void setWorkContinuity(String workContinuity) { this.workContinuity = workContinuity; }
 
     public String getPriority() { return priority; }
     public void setPriority(String priority) { this.priority = priority; }
@@ -141,6 +175,39 @@ public class IncidentDTO {
 
     public String getRelatedLotCode() { return relatedLotCode; }
     public void setRelatedLotCode(String relatedLotCode) { this.relatedLotCode = relatedLotCode; }
+
+    public String getSource() { return source; }
+    public void setSource(String source) { this.source = source; }
+
+    public String getActionAttempted() { return actionAttempted; }
+    public void setActionAttempted(String actionAttempted) { this.actionAttempted = actionAttempted; }
+
+    public Integer getHttpStatus() { return httpStatus; }
+    public void setHttpStatus(Integer httpStatus) { this.httpStatus = httpStatus; }
+
+    public String getErrorCode() { return errorCode; }
+    public void setErrorCode(String errorCode) { this.errorCode = errorCode; }
+
+    public String getTechnicalRequestId() { return technicalRequestId; }
+    public void setTechnicalRequestId(String technicalRequestId) { this.technicalRequestId = technicalRequestId; }
+
+    public String getSanitizedErrorMessage() { return sanitizedErrorMessage; }
+    public void setSanitizedErrorMessage(String sanitizedErrorMessage) { this.sanitizedErrorMessage = sanitizedErrorMessage; }
+
+    public String getAttachmentOriginalName() { return attachmentOriginalName; }
+    public void setAttachmentOriginalName(String attachmentOriginalName) { this.attachmentOriginalName = attachmentOriginalName; }
+
+    public String getAttachmentMimeType() { return attachmentMimeType; }
+    public void setAttachmentMimeType(String attachmentMimeType) { this.attachmentMimeType = attachmentMimeType; }
+
+    public Long getAttachmentSize() { return attachmentSize; }
+    public void setAttachmentSize(Long attachmentSize) { this.attachmentSize = attachmentSize; }
+
+    public Boolean getHasAttachment() { return hasAttachment; }
+    public void setHasAttachment(Boolean hasAttachment) { this.hasAttachment = hasAttachment; }
+
+    public Boolean getJiraAttachmentSynced() { return jiraAttachmentSynced; }
+    public void setJiraAttachmentSynced(Boolean jiraAttachmentSynced) { this.jiraAttachmentSynced = jiraAttachmentSynced; }
 
     public String getReporterUsername() { return reporterUsername; }
     public void setReporterUsername(String reporterUsername) { this.reporterUsername = reporterUsername; }

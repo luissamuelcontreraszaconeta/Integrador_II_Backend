@@ -27,6 +27,9 @@ public class DatabaseMigrationConfig {
         try (Connection conn = dataSource.getConnection();
              Statement stmt = conn.createStatement()) {
 
+            stmt.execute("PRAGMA busy_timeout = 10000;");
+            stmt.execute("PRAGMA journal_mode = WAL;");
+
             migrateNotificationsTable(stmt);
             migrateQaEvidencesTable(stmt);
             migrateLotsTable(stmt);
@@ -494,6 +497,36 @@ public class DatabaseMigrationConfig {
         stmt.execute("CREATE INDEX IF NOT EXISTS idx_incident_priority ON incident_reports(priority);");
         stmt.execute("CREATE INDEX IF NOT EXISTS idx_incident_sync_status ON incident_reports(sync_status);");
         stmt.execute("CREATE INDEX IF NOT EXISTS idx_incident_created_at ON incident_reports(created_at);");
+
+        List<String> existingIncCols = new ArrayList<>();
+        try (ResultSet rs = stmt.executeQuery("PRAGMA table_info(incident_reports)")) {
+            while (rs.next()) {
+                existingIncCols.add(rs.getString("name").toLowerCase());
+            }
+        }
+
+        String[][] incidentCols = {
+            {"source", "VARCHAR(30) DEFAULT 'MANUAL_SUPPORT'"},
+            {"work_continuity", "VARCHAR(40)"},
+            {"action_attempted", "VARCHAR(200)"},
+            {"http_status", "INTEGER"},
+            {"error_code", "VARCHAR(80)"},
+            {"technical_request_id", "VARCHAR(100)"},
+            {"sanitized_error_message", "TEXT"},
+            {"lot_code_snapshot", "VARCHAR(60)"},
+            {"attachment_original_name", "VARCHAR(255)"},
+            {"attachment_stored_path", "VARCHAR(500)"},
+            {"attachment_mime_type", "VARCHAR(100)"},
+            {"attachment_size", "BIGINT"},
+            {"attachment_sha256", "VARCHAR(64)"},
+            {"jira_attachment_synced", "BOOLEAN DEFAULT 0"}
+        };
+
+        for (String[] col : incidentCols) {
+            if (!existingIncCols.contains(col[0])) {
+                stmt.execute("ALTER TABLE incident_reports ADD COLUMN " + col[0] + " " + col[1] + ";");
+            }
+        }
     }
 
     private void migrateServiceRequestsTable(Statement stmt) throws Exception {

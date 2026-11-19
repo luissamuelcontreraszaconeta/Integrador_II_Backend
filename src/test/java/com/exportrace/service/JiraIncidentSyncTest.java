@@ -759,4 +759,105 @@ public class JiraIncidentSyncTest {
 
         mockJiraServer.verify();
     }
+
+    @Test
+    @DisplayName("CTX-INC-01..12: Reporte contextual con prellenado de módulo/ruta/error/lotCode, adjunto de captura, mapeo real de Request Type 10083 y visibilidad en Mis Incidencias")
+    void ctxInc01_to_12_contextualIncidentWithAttachmentAndReal10083FieldsSyncsAndAppearsInMyIncidents() throws Exception {
+        String preflight10083Json = """
+                {
+                  "canRaiseOnBehalfOf": true,
+                  "requestTypeFields": [
+                    { "fieldId": "summary", "name": "Resumen", "required": true },
+                    { "fieldId": "description", "name": "Descripción", "required": true },
+                    { "fieldId": "customfield_10276", "name": "Categoría", "required": true },
+                    { "fieldId": "customfield_10277", "name": "Impacto", "required": true },
+                    { "fieldId": "customfield_10278", "name": "¿Puede continuar trabajando?", "required": true },
+                    { "fieldId": "customfield_10279", "name": "Módulo afectado", "required": true },
+                    { "fieldId": "customfield_10280", "name": "Ruta / pantalla", "required": false },
+                    { "fieldId": "customfield_10281", "name": "Código de lote", "required": false },
+                    { "fieldId": "customfield_10282", "name": "Código de error / HTTP", "required": false },
+                    { "fieldId": "attachment", "name": "Adjunto", "required": false },
+                    { "fieldId": "customfield_10221", "name": "ExporTrace Correlation ID", "required": false }
+                  ]
+                }
+                """;
+
+        jiraProperties.setRequestTypeId("10083");
+        jiraProperties.setServiceDeskId("2");
+        jiraProperties.setCorrelationFieldId("customfield_10221");
+
+        // 1. Lookup JQL -> 0 issues
+        mockJiraServer.expect(requestTo(containsString("/rest/api/3/search/jql")))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"total\":0,\"issues\":[]}", MediaType.APPLICATION_JSON));
+
+        // 2. Preflight Request Type 10083
+        mockJiraServer.expect(requestTo(TEST_JIRA_BASE_URL + "/rest/servicedeskapi/servicedesk/2/requesttype/10083/field"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(preflight10083Json, MediaType.APPLICATION_JSON));
+
+        // 3. Create Customer Request verificando todos los customfield_10276..10282 + customfield_10221
+        mockJiraServer.expect(requestTo(TEST_JIRA_BASE_URL + "/rest/servicedeskapi/request"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(MockRestRequestMatchers.jsonPath("$.serviceDeskId").value("2"))
+                .andExpect(MockRestRequestMatchers.jsonPath("$.requestTypeId").value("10083"))
+                .andExpect(MockRestRequestMatchers.jsonPath("$.requestFieldValues.customfield_10276.id").value("10088")) // Error funcional (QUALITY)
+                .andExpect(MockRestRequestMatchers.jsonPath("$.requestFieldValues.customfield_10277.id").value("10080")) // Alto (HIGH)
+                .andExpect(MockRestRequestMatchers.jsonPath("$.requestFieldValues.customfield_10278.id").value("10084")) // Puedo continuar parcialmente
+                .andExpect(MockRestRequestMatchers.jsonPath("$.requestFieldValues.customfield_10279.id").value("10099")) // Calidad QA
+                .andExpect(MockRestRequestMatchers.jsonPath("$.requestFieldValues.customfield_10280").value("/quality/inspect/1"))
+                .andExpect(MockRestRequestMatchers.jsonPath("$.requestFieldValues.customfield_10281").value(testLot.getCodigo()))
+                .andExpect(MockRestRequestMatchers.jsonPath("$.requestFieldValues.customfield_10282").value("HTTP 500 (ERR_QA_SAVE)"))
+                .andExpect(MockRestRequestMatchers.jsonPath("$.requestFieldValues.customfield_10221").isNotEmpty())
+                .andRespond(withStatus(HttpStatus.CREATED)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"issueId\":\"10901\",\"issueKey\":\"EXT-901\"}"));
+
+        // 4. Upload attachment / captura a Jira
+        mockJiraServer.expect(requestTo(TEST_JIRA_BASE_URL + "/rest/api/3/issue/EXT-901/attachments"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("[{\"id\":\"501\"}]", MediaType.APPLICATION_JSON));
+
+        CreateIncidentRequest ctxReq = new CreateIncidentRequest();
+        ctxReq.setCategory(IncidentCategory.QUALITY);
+        ctxReq.setSummary("Error contextual al guardar inspección organoléptica QA");
+        ctxReq.setDescription("Ocurrió un fallo HTTP 500 al intentar registrar el dictamen organoléptico del lote.");
+        ctxReq.setImpact(IncidentImpact.HIGH);
+        ctxReq.setWorkContinuity(WorkContinuity.CONTINUA_PARCIALMENTE); // HIGH + MEDIUM = P2_HIGH
+        ctxReq.setModule("CALIDAD");
+        ctxReq.setRoute("/quality/inspect/1");
+        ctxReq.setLotCode(testLot.getCodigo());
+        ctxReq.setSource("CONTEXTUAL_ERROR");
+        ctxReq.setActionAttempted("Guardar inspección organoléptica QA");
+        ctxReq.setHttpStatus(500);
+        ctxReq.setErrorCode("ERR_QA_SAVE");
+        ctxReq.setTechnicalRequestId("req-ctx-2026-001");
+        ctxReq.setSanitizedErrorMessage("Error interno al procesar la inspección QA.");
+
+        org.springframework.mock.web.MockMultipartFile screenshot = new org.springframework.mock.web.MockMultipartFile(
+                "file",
+                "captura-vista-qa.png",
+                "image/png",
+                new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
+        );
+
+        IncidentDTO created = incidentService.createIncident(ctxReq, screenshot, userQa.getEmail(), null);
+
+        assertNotNull(created.getId());
+        assertEquals("CONTEXTUAL_ERROR", created.getSource());
+        assertEquals("P2_HIGH", created.getPriority());
+        assertEquals("SYNCED", created.getSyncStatus());
+        assertEquals("EXT-901", created.getJiraIssueKey());
+        assertEquals(testLot.getCodigo(), created.getRelatedLotCode());
+        assertEquals(500, created.getHttpStatus());
+        assertEquals("ERR_QA_SAVE", created.getErrorCode());
+        assertTrue(Boolean.TRUE.equals(created.getHasAttachment()));
+        assertTrue(Boolean.TRUE.equals(created.getJiraAttachmentSynced()));
+
+        // CTX-INC-11: Aparece en Mis Incidencias del usuario reportante
+        List<IncidentDTO> myList = incidentService.getMyIncidents(userQa.getEmail());
+        assertTrue(myList.stream().anyMatch(i -> created.getCode().equals(i.getCode()) && "EXT-901".equals(i.getJiraIssueKey())));
+
+        mockJiraServer.verify();
+    }
 }

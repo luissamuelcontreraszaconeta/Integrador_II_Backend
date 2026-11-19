@@ -61,6 +61,9 @@ public class IncidentSyncService {
     @Autowired
     private TransactionTemplate transactionTemplate;
 
+    @Autowired
+    private FileStorageService fileStorageService;
+
     /**
      * Sincroniza una incidencia local ya persistida hacia Jira Service Management.
      * Si JIRA_ENABLED=false, no realiza ninguna llamada externa y conserva el estado local.
@@ -206,6 +209,21 @@ public class IncidentSyncService {
                 jiraIncidentService.createCustomerRequest(snapshot, fieldsOutcome.getMetadata());
 
         if (createOutcome.isCreated()) {
+            boolean attachmentUploaded = false;
+            if (snapshot.getAttachmentStoredPath() != null && !snapshot.getAttachmentStoredPath().isBlank()
+                    && !Boolean.TRUE.equals(snapshot.getJiraAttachmentSynced())) {
+                try {
+                    org.springframework.core.io.Resource res = fileStorageService.loadFileAsResource(snapshot.getAttachmentStoredPath());
+                    attachmentUploaded = jiraIncidentService.uploadAttachmentToJiraIssue(
+                            createOutcome.getIssueKey(),
+                            res,
+                            snapshot.getAttachmentOriginalName()
+                    );
+                } catch (Exception ex) {
+                    log.warn("[IncidentSyncService] Evidencia local preservada para {}, envío a Jira omitido: {}",
+                            snapshot.getCode(), ex.getMessage());
+                }
+            }
             return recordSyncedOutcome(
                     incidentId,
                     actorUserId,
@@ -213,6 +231,7 @@ public class IncidentSyncService {
                     resolvedActorRole,
                     createOutcome.getIssueKey(),
                     createOutcome.getRequestId(),
+                    attachmentUploaded,
                     httpRequest
             );
         }
@@ -317,6 +336,7 @@ public class IncidentSyncService {
             String actorRole,
             String issueKey,
             String requestId,
+            boolean attachmentUploaded,
             HttpServletRequest httpRequest) {
 
         return transactionTemplate.execute(status -> {
@@ -330,6 +350,9 @@ public class IncidentSyncService {
             inc.setJiraLastSyncAt(LocalDateTime.now());
             inc.setSyncStatus(JiraSyncStatus.SYNCED);
             inc.setLastSyncError(null);
+            if (attachmentUploaded) {
+                inc.setJiraAttachmentSynced(true);
+            }
 
             IncidentReport saved = incidentReportRepository.saveAndFlush(inc);
 

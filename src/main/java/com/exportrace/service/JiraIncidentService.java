@@ -2,18 +2,27 @@ package com.exportrace.service;
 
 import com.exportrace.config.JiraProperties;
 import com.exportrace.entity.IncidentReport;
+import com.exportrace.entity.enums.IncidentCategory;
+import com.exportrace.entity.enums.IncidentImpact;
 import com.exportrace.entity.enums.IncidentPriority;
+import com.exportrace.entity.enums.IncidentUrgency;
 import com.exportrace.entity.enums.JiraSyncStatus;
+import com.exportrace.entity.enums.WorkContinuity;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
@@ -357,6 +366,38 @@ public class JiraIncidentService {
             requestFieldValues.put(codeFieldId, incident.getCode());
         }
 
+        // Mapear campos reales del Request Type 10083 (Reportar incidencia ExporTrace) si están presentes en el preflight
+        Set<String> supportedIds = fieldMetadata != null ? fieldMetadata.getSupportedFieldIds() : Collections.emptySet();
+        if (supportedIds.contains("customfield_10276")) {
+            requestFieldValues.put("customfield_10276", Map.of("id", mapCategoryToJiraOptionId(incident.getCategory())));
+        }
+        if (supportedIds.contains("customfield_10277")) {
+            requestFieldValues.put("customfield_10277", Map.of("id", mapImpactToJiraOptionId(incident.getImpact())));
+        }
+        if (supportedIds.contains("customfield_10278")) {
+            requestFieldValues.put("customfield_10278", Map.of("id", mapWorkContinuityToJiraOptionId(incident.getWorkContinuity(), incident.getUrgency())));
+        }
+        if (supportedIds.contains("customfield_10279")) {
+            requestFieldValues.put("customfield_10279", Map.of("id", mapModuleToJiraOptionId(incident.getModule(), incident.getCategory())));
+        }
+        if (supportedIds.contains("customfield_10280") && incident.getRoute() != null && !incident.getRoute().isBlank()) {
+            requestFieldValues.put("customfield_10280", incident.getRoute().trim());
+        }
+        if (supportedIds.contains("customfield_10281")) {
+            String lotCodeVal = (incident.getRelatedLot() != null && incident.getRelatedLot().getCodigo() != null)
+                    ? incident.getRelatedLot().getCodigo()
+                    : incident.getLotCodeSnapshot();
+            if (lotCodeVal != null && !lotCodeVal.isBlank()) {
+                requestFieldValues.put("customfield_10281", lotCodeVal.trim());
+            }
+        }
+        if (supportedIds.contains("customfield_10282")) {
+            String errHttp = buildErrorHttpSummary(incident.getHttpStatus(), incident.getErrorCode());
+            if (!errHttp.isEmpty()) {
+                requestFieldValues.put("customfield_10282", errHttp);
+            }
+        }
+
         // Solo enviar Priority si el Request Type realmente lo expone como campo escribible
         if (fieldMetadata != null && fieldMetadata.isSupportsPriority() && incident.getPriority() != null) {
             requestFieldValues.put("priority", Map.of("name", mapPriorityToJiraName(incident.getPriority())));
@@ -481,13 +522,229 @@ public class JiraIncidentService {
         }
         sb.append("Módulo: ").append(nullSafe(incident.getModule())).append("\n");
         sb.append("Ruta: ").append(nullSafe(incident.getRoute())).append("\n");
+        sb.append("Origen del reporte: ").append(nullSafe(incident.getSource())).append("\n");
         if (incident.getRelatedLot() != null && incident.getRelatedLot().getCodigo() != null) {
             sb.append("Lote relacionado: ").append(incident.getRelatedLot().getCodigo())
               .append(" (ID ").append(incident.getRelatedLot().getId()).append(")\n");
+        } else if (incident.getLotCodeSnapshot() != null && !incident.getLotCodeSnapshot().isBlank()) {
+            sb.append("Lote relacionado: ").append(incident.getLotCodeSnapshot().trim()).append("\n");
+        }
+        if (incident.getActionAttempted() != null && !incident.getActionAttempted().isBlank()) {
+            sb.append("Acción que estaba realizando: ").append(incident.getActionAttempted().trim()).append("\n");
+        }
+        if (incident.getHttpStatus() != null) {
+            sb.append("HTTP Status: ").append(incident.getHttpStatus()).append("\n");
+        }
+        if (incident.getErrorCode() != null && !incident.getErrorCode().isBlank()) {
+            sb.append("Código de error: ").append(incident.getErrorCode().trim()).append("\n");
+        }
+        if (incident.getTechnicalRequestId() != null && !incident.getTechnicalRequestId().isBlank()) {
+            sb.append("Correlation/Request ID técnico: ").append(incident.getTechnicalRequestId().trim()).append("\n");
+        }
+        if (incident.getSanitizedErrorMessage() != null && !incident.getSanitizedErrorMessage().isBlank()) {
+            sb.append("Mensaje de error sanitizado: ").append(incident.getSanitizedErrorMessage().trim()).append("\n");
+        }
+        if (incident.getAttachmentOriginalName() != null && !incident.getAttachmentOriginalName().isBlank()) {
+            sb.append("Evidencia adjunta: ").append(incident.getAttachmentOriginalName().trim()).append("\n");
         }
         sb.append("\n--- DESCRIPCIÓN DEL PROBLEMA ---\n");
         sb.append(nullSafe(incident.getDescription()));
         return sb.toString();
+    }
+
+    /**
+     * Traducción determinística de Categoría hacia validValues reales de customfield_10276 (Request Type 10083):
+     * 10079 = Acceso / autenticación
+     * 10087 = Permisos / autorización
+     * 10088 = Error funcional
+     * 10089 = Información incorrecta
+     * 10090 = Integración / API
+     * 10091 = Base de datos
+     * 10092 = Rendimiento
+     * 10093 = Infraestructura
+     * 10094 = Notificaciones
+     * 10095 = Seguridad
+     * 10096 = Otro
+     */
+    public String mapCategoryToJiraOptionId(IncidentCategory category) {
+        if (category == null) {
+            return "10096";
+        }
+        return switch (category) {
+            case AUTHENTICATION -> "10079";
+            case ACCESS_CONTROL -> "10087";
+            case LOTS, QUALITY, COLD_CHAIN, DOCUMENTS, CERTIFICATION, TRACEABILITY_QR, LOGISTICS, DASHBOARD -> "10088";
+            case NOTIFICATIONS -> "10094";
+            case BACKEND_API -> "10090";
+            case DATABASE -> "10091";
+            case INFRASTRUCTURE -> "10093";
+            case OTHER -> "10096";
+        };
+    }
+
+    /**
+     * Traducción determinística de Impacto hacia validValues reales de customfield_10277 (Request Type 10083):
+     * 10080 = Alto
+     * 10081 = Medio
+     * 10082 = Bajo
+     */
+    public String mapImpactToJiraOptionId(IncidentImpact impact) {
+        if (impact == null) {
+            return "10081";
+        }
+        return switch (impact) {
+            case HIGH -> "10080";
+            case MEDIUM -> "10081";
+            case LOW -> "10082";
+        };
+    }
+
+    /**
+     * Traducción determinística de ¿Puede continuar trabajando? hacia validValues reales de customfield_10278 (Request Type 10083):
+     * 10083 = No puedo continuar
+     * 10084 = Puedo continuar parcialmente
+     * 10085 = Sí, puedo continuar
+     */
+    public String mapWorkContinuityToJiraOptionId(WorkContinuity workContinuity, IncidentUrgency urgency) {
+        if (workContinuity != null) {
+            return switch (workContinuity) {
+                case NO_PUEDE_CONTINUAR -> "10083";
+                case CONTINUA_PARCIALMENTE -> "10084";
+                case PUEDE_CONTINUAR -> "10085";
+            };
+        }
+        if (urgency != null) {
+            return switch (urgency) {
+                case HIGH -> "10083";
+                case MEDIUM -> "10084";
+                case LOW -> "10085";
+            };
+        }
+        return "10084";
+    }
+
+    /**
+     * Traducción determinística de Módulo afectado hacia validValues reales de customfield_10279 (Request Type 10083):
+     * 10086 = Autenticación / Sesiones
+     * 10097 = Producción
+     * 10098 = Lotes
+     * 10099 = Calidad QA
+     * 10100 = Cadena de Frío
+     * 10101 = Documentos
+     * 10102 = Certificación SANIPES
+     * 10103 = QR / Trazabilidad
+     * 10104 = Logística / Despacho
+     * 10105 = Dashboard / KPIs
+     * 10106 = Usuarios y Accesos
+     * 10107 = Roles y Permisos
+     * 10108 = Notificaciones
+     * 10109 = Centro de Soporte
+     * 10110 = Backend / API
+     * 10111 = Base de Datos
+     * 10112 = Infraestructura
+     * 10113 = Otro
+     */
+    public String mapModuleToJiraOptionId(String rawModule, IncidentCategory category) {
+        String norm = normalizeStatusKey(rawModule);
+        if (norm.contains("AUTENTICACION") || norm.contains("SESION") || norm.contains("LOGIN")) return "10086";
+        if (norm.contains("PRODUCCION")) return "10097";
+        if (norm.contains("LOTE")) return "10098";
+        if (norm.contains("FRIO") || norm.contains("COLD")) return "10100";
+        if (norm.contains("CALIDAD") || norm.equals("QA") || norm.contains("QUALITY")) return "10099";
+        if (norm.contains("DOCUMENT")) return "10101";
+        if (norm.contains("CERTIFICA") || norm.contains("SANIPES")) return "10102";
+        if (norm.contains("TRAZABILIDAD") || norm.contains("QR")) return "10103";
+        if (norm.contains("LOGISTICA") || norm.contains("DESPACHO") || norm.contains("DISPATCH")) return "10104";
+        if (norm.contains("DASHBOARD") || norm.contains("GERENCIA") || norm.contains("KPI")) return "10105";
+        if (norm.contains("ROL") || norm.contains("PERMISO") || norm.contains("RBAC") || norm.contains("SEGURIDAD")) return "10107";
+        if (norm.contains("USUARIO") || norm.contains("ADMIN") || norm.contains("ACCESO")) return "10106";
+        if (norm.contains("NOTIFICA")) return "10108";
+        if (norm.contains("SOPORTE") || norm.contains("SUPPORT")) return "10109";
+        if (norm.contains("BACKEND") || norm.contains("API")) return "10110";
+        if (norm.contains("BASE DE DATOS") || norm.contains("DATABASE") || norm.contains("SQLITE")) return "10111";
+        if (norm.contains("INFRAESTRUCTURA") || norm.contains("RENDER")) return "10112";
+
+        if (category != null) {
+            return switch (category) {
+                case AUTHENTICATION -> "10086";
+                case ACCESS_CONTROL -> "10107";
+                case LOTS -> "10098";
+                case QUALITY -> "10099";
+                case COLD_CHAIN -> "10100";
+                case DOCUMENTS -> "10101";
+                case CERTIFICATION -> "10102";
+                case TRACEABILITY_QR -> "10103";
+                case LOGISTICS -> "10104";
+                case DASHBOARD -> "10105";
+                case NOTIFICATIONS -> "10108";
+                case BACKEND_API -> "10110";
+                case DATABASE -> "10111";
+                case INFRASTRUCTURE -> "10112";
+                case OTHER -> "10113";
+            };
+        }
+        return "10113";
+    }
+
+    private String buildErrorHttpSummary(Integer httpStatus, String errorCode) {
+        String codePart = (errorCode != null && !errorCode.isBlank()) ? errorCode.trim() : "";
+        String httpPart = httpStatus != null ? "HTTP " + httpStatus : "";
+        if (!httpPart.isEmpty() && !codePart.isEmpty()) {
+            return codePart.toUpperCase(Locale.ROOT).contains(String.valueOf(httpStatus))
+                    ? codePart
+                    : httpPart + " (" + codePart + ")";
+        }
+        return !httpPart.isEmpty() ? httpPart : codePart;
+    }
+
+    /**
+     * Adjunta evidencia o captura al ticket Jira creado usando POST /rest/api/3/issue/{issueKey}/attachments
+     * con cabecera X-Atlassian-Token: no-check (fuera de transacción SQLite).
+     */
+    public boolean uploadAttachmentToJiraIssue(String issueKey, Resource fileResource, String originalFilename) {
+        if (isBlank(issueKey) || fileResource == null) {
+            return false;
+        }
+        String baseUrl = normalizeBaseUrl(jiraProperties.getBaseUrl());
+        URI uri = UriComponentsBuilder.fromHttpUrl(baseUrl)
+                .path("/rest/api/3/issue/{issueKey}/attachments")
+                .buildAndExpand(issueKey.trim())
+                .toUri();
+
+        try {
+            byte[] bytes = fileResource.getInputStream().readAllBytes();
+            final String safeFilename = (originalFilename != null && !originalFilename.isBlank())
+                    ? originalFilename.trim()
+                    : "evidencia-incidencia-exportrace.png";
+
+            ByteArrayResource namedResource = new ByteArrayResource(bytes) {
+                @Override
+                public String getFilename() {
+                    return safeFilename;
+                }
+            };
+
+            MultiValueMap<String, Object> multipartBody = new LinkedMultiValueMap<>();
+            HttpHeaders partHeaders = new HttpHeaders();
+            partHeaders.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            multipartBody.add("file", new HttpEntity<>(namedResource, partHeaders));
+
+            getRestClient().post()
+                    .uri(uri)
+                    .header(HttpHeaders.AUTHORIZATION, authHeaderProvider.getAuthorizationHeader())
+                    .header("X-Atlassian-Token", "no-check")
+                    .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(multipartBody)
+                    .retrieve()
+                    .body(String.class);
+
+            return true;
+        } catch (Exception ex) {
+            log.warn("[JiraIncidentService] No se pudo adjuntar evidencia en Jira para {}: {}",
+                    issueKey, sanitizeErrorMessage(ex.getMessage()));
+            return false;
+        }
     }
 
     private String mapPriorityToJiraName(IncidentPriority priority) {
