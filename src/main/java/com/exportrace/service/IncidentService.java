@@ -62,16 +62,35 @@ public class IncidentService {
     @Autowired
     private IncidentSyncService incidentSyncService;
 
+    @Autowired
+    private FileStorageService fileStorageService;
+
+    @Autowired
+    private JiraIncidentService jiraIncidentService;
+
     /**
-     * Flujo Fase A + Fase C:
+     * Flujo Fase A + Fase C (Manual y Contextual):
      * 1. TRANSACCIÓN LOCAL: Guarda primero IncidentReport, auditoría INCIDENT_CREATED y notificación local.
      * 2. SINCRONIZACIÓN EXTERNA (fuera de la transacción de creación local):
      *    Si JIRA_ENABLED=true, intenta sincronizar con Jira Service Management (Lookup-Before-Create + Create Request).
      *    Si Jira falla o hace timeout, conserva la incidencia local intacta y marca RETRY_PENDING o ERROR.
      */
     public IncidentDTO createIncident(CreateIncidentRequest req, String userEmail, HttpServletRequest httpRequest) {
+        return createIncident(req, null, userEmail, httpRequest);
+    }
+
+    public IncidentDTO createIncident(
+            CreateIncidentRequest req,
+            org.springframework.web.multipart.MultipartFile attachmentFile,
+            String userEmail,
+            HttpServletRequest httpRequest) {
+
+        final FileStorageService.StoredFile storedAttachment = (attachmentFile != null && !attachmentFile.isEmpty())
+                ? storeIncidentAttachment(attachmentFile)
+                : null;
+
         LocalCreationContext localContext = transactionTemplate.execute(status ->
-                saveLocalIncidentInTransaction(req, userEmail, httpRequest));
+                saveLocalIncidentInTransaction(req, storedAttachment, userEmail, httpRequest));
 
         if (localContext == null || localContext.dto == null) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
@@ -101,6 +120,7 @@ public class IncidentService {
 
     private LocalCreationContext saveLocalIncidentInTransaction(
             CreateIncidentRequest req,
+            FileStorageService.StoredFile storedAttachment,
             String userEmail,
             HttpServletRequest httpRequest) {
         if (userEmail == null || userEmail.isBlank()) {
@@ -135,12 +155,14 @@ public class IncidentService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Debe responder si puede continuar con su trabajo (workContinuity).");
         }
 
-        // 3. Validar relatedLotId si fue proporcionado
+        // 3. Validar relatedLotId o resolver por lotCode si fue proporcionado
         Lot relatedLot = null;
         if (req.getRelatedLotId() != null) {
             relatedLot = lotRepository.findById(req.getRelatedLotId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                             "El lote relacionado con ID " + req.getRelatedLotId() + " no existe en el sistema."));
+        } else if (req.getLotCode() != null && !req.getLotCode().isBlank()) {
+            relatedLot = lotRepository.findByCodigo(req.getLotCode().trim()).orElse(null);
         }
 
         // 4. Mapear workContinuity -> IncidentUrgency y calcular Prioridad en IncidentPriorityService
@@ -188,6 +210,7 @@ public class IncidentService {
             incident.setDescription(req.getDescription().trim());
             incident.setImpact(req.getImpact());
             incident.setUrgency(urgency);
+            incident.setWorkContinuity(req.getWorkContinuity());
             incident.setPriority(priority);
             incident.setStatus(IncidentStatus.REPORTED);
             incident.setSyncStatus(JiraSyncStatus.PENDING);
@@ -195,6 +218,29 @@ public class IncidentService {
             incident.setModule(resolvedModule);
             incident.setRoute(resolvedRoute);
             incident.setRelatedLot(relatedLot);
+            String resolvedLotCode = relatedLot != null ? relatedLot.getCodigo()
+                    : (req.getLotCode() != null && !req.getLotCode().isBlank() ? req.getLotCode().trim() : null);
+            incident.setLotCodeSnapshot(resolvedLotCode);
+
+            String resolvedSource = (req.getSource() != null && "CONTEXTUAL_ERROR".equalsIgnoreCase(req.getSource().trim()))
+                    ? "CONTEXTUAL_ERROR"
+                    : "MANUAL_SUPPORT";
+            incident.setSource(resolvedSource);
+            incident.setActionAttempted(trimOrNull(req.getActionAttempted()));
+            incident.setHttpStatus(req.getHttpStatus());
+            incident.setErrorCode(trimOrNull(req.getErrorCode()));
+            incident.setTechnicalRequestId(trimOrNull(req.getTechnicalRequestId()));
+            incident.setSanitizedErrorMessage(trimOrNull(req.getSanitizedErrorMessage()));
+
+            if (storedAttachment != null) {
+                incident.setAttachmentOriginalName(storedAttachment.originalFileName());
+                incident.setAttachmentStoredPath(storedAttachment.relativeStoragePath());
+                incident.setAttachmentMimeType(storedAttachment.mimeType());
+                incident.setAttachmentSize(storedAttachment.fileSize());
+                incident.setAttachmentSha256(storedAttachment.sha256());
+                incident.setJiraAttachmentSynced(false);
+            }
+
             incident.setCreatedAt(now);
             incident.setUpdatedAt(now);
             incident.setSlaFirstResponseTargetAt(incidentPriorityService.calculateFirstResponseTarget(now, priority));
@@ -396,5 +442,104 @@ public class IncidentService {
             uuid = UUID.randomUUID().toString();
         } while (incidentReportRepository.existsByCorrelationId(uuid));
         return uuid;
+    }
+
+    private String trimOrNull(String val) {
+        return (val != null && !val.trim().isEmpty()) ? val.trim() : null;
+    }
+
+    public IncidentDTO uploadAttachment(
+            Long id,
+            org.springframework.web.multipart.MultipartFile file,
+            String userEmail,
+            HttpServletRequest httpRequest) {
+
+        User currentUser = getActiveAuthenticatedUser(userEmail);
+        IncidentReport inc = incidentReportRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Incidencia no encontrada con ID: " + id));
+
+        String roleName = currentUser.getRole() != null && currentUser.getRole().getNombre() != null
+                ? currentUser.getRole().getNombre()
+                : "USUARIO";
+        boolean isAdminOrSuperAdmin = "ADMINISTRADOR".equalsIgnoreCase(roleName) || "SUPERADMIN".equalsIgnoreCase(roleName);
+        boolean isOwner = inc.getReporterUser() != null
+                && inc.getReporterUser().getId() != null
+                && inc.getReporterUser().getId().equals(currentUser.getId());
+
+        if (!isOwner && !isAdminOrSuperAdmin) {
+            throw new AccessDeniedException("Acceso denegado: No tiene autorización para adjuntar evidencias a esta incidencia.");
+        }
+
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Debe proporcionar un archivo o captura válida.");
+        }
+
+        FileStorageService.StoredFile stored = storeIncidentAttachment(file);
+
+        IncidentReport updated = transactionTemplate.execute(status -> {
+            IncidentReport entity = incidentReportRepository.findById(id).orElseThrow();
+            entity.setAttachmentOriginalName(stored.originalFileName());
+            entity.setAttachmentStoredPath(stored.relativeStoragePath());
+            entity.setAttachmentMimeType(stored.mimeType());
+            entity.setAttachmentSize(stored.fileSize());
+            entity.setAttachmentSha256(stored.sha256());
+            entity.setJiraAttachmentSynced(false);
+            entity.setUpdatedAt(LocalDateTime.now());
+            return incidentReportRepository.saveAndFlush(entity);
+        });
+
+        if (jiraProperties.isEnabled() && updated != null && updated.getJiraIssueKey() != null && !updated.getJiraIssueKey().isBlank()) {
+            try {
+                org.springframework.core.io.Resource res = fileStorageService.loadFileAsResource(updated.getAttachmentStoredPath());
+                boolean uploaded = jiraIncidentService.uploadAttachmentToJiraIssue(
+                        updated.getJiraIssueKey(),
+                        res,
+                        updated.getAttachmentOriginalName()
+                );
+                if (uploaded) {
+                    transactionTemplate.executeWithoutResult(status -> {
+                        IncidentReport entity = incidentReportRepository.findById(id).orElse(null);
+                        if (entity != null) {
+                            entity.setJiraAttachmentSynced(true);
+                            incidentReportRepository.saveAndFlush(entity);
+                        }
+                    });
+                }
+            } catch (Exception ex) {
+                log.warn("[IncidentService] Evidencia local guardada para {}, pendiente de envío a Jira ({}).",
+                        updated.getCode(), ex.getMessage());
+            }
+        }
+
+        IncidentReport refreshed = incidentReportRepository.findById(id).orElse(updated);
+        return new IncidentDTO(refreshed);
+    }
+
+    public record AttachmentDownload(org.springframework.core.io.Resource resource, String originalName, String mimeType) {}
+
+    @Transactional(readOnly = true)
+    public AttachmentDownload downloadAttachment(Long id, String userEmail, HttpServletRequest httpRequest) {
+        IncidentDTO dto = getIncidentById(id, userEmail, httpRequest);
+        IncidentReport inc = incidentReportRepository.findById(dto.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Incidencia no encontrada."));
+
+        if (inc.getAttachmentStoredPath() == null || inc.getAttachmentStoredPath().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "La incidencia no posee archivo o captura adjunta.");
+        }
+
+        org.springframework.core.io.Resource resource = fileStorageService.loadFileAsResource(inc.getAttachmentStoredPath());
+        String mimeType = inc.getAttachmentMimeType() != null ? inc.getAttachmentMimeType() : "application/octet-stream";
+        String originalName = inc.getAttachmentOriginalName() != null ? inc.getAttachmentOriginalName() : "evidencia-incidencia.png";
+        return new AttachmentDownload(resource, originalName, mimeType);
+    }
+
+    private FileStorageService.StoredFile storeIncidentAttachment(org.springframework.web.multipart.MultipartFile file) {
+        String contentType = file.getContentType() != null ? file.getContentType().toLowerCase() : "";
+        String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+        if (contentType.contains("pdf") || originalFilename.endsWith(".pdf")) {
+            return fileStorageService.storeDocument(file, "incidents");
+        }
+        return fileStorageService.storeEvidence(file, "incidents");
     }
 }

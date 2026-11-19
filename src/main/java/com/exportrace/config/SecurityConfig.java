@@ -31,6 +31,9 @@ public class SecurityConfig {
     private JwtAuthFilter jwtAuthFilter;
 
     @Autowired
+    private MonitoringTokenAuthFilter monitoringTokenAuthFilter;
+
+    @Autowired
     private CustomAccessDeniedHandler customAccessDeniedHandler;
 
     @Value("${cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://localhost:80,https://exportrace-frontend.onrender.com}")
@@ -48,10 +51,14 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/public/traceability/verify/**", "/api/public/traceability/**").permitAll()
                 .requestMatchers("/api/health").permitAll()
+                .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/actuator/prometheus").hasAuthority(MonitoringTokenAuthFilter.PROMETHEUS_READ_AUTHORITY)
+                .requestMatchers("/actuator/**").denyAll()
                 .requestMatchers("/error").permitAll()
                 // All other endpoints require authentication with JWT
                 .anyRequest().authenticated()
             )
+            .addFilterBefore(monitoringTokenAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

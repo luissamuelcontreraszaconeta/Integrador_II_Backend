@@ -134,6 +134,49 @@ public class IncidentReport {
     @Column(name = "sla_breached", nullable = false)
     private Boolean slaBreached = false;
 
+    @Column(name = "source", length = 30)
+    private String source = "MANUAL_SUPPORT";
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "work_continuity", length = 40)
+    private WorkContinuity workContinuity;
+
+    @Column(name = "action_attempted", length = 200)
+    private String actionAttempted;
+
+    @Column(name = "http_status")
+    private Integer httpStatus;
+
+    @Column(name = "error_code", length = 80)
+    private String errorCode;
+
+    @Column(name = "technical_request_id", length = 100)
+    private String technicalRequestId;
+
+    @Column(name = "sanitized_error_message", columnDefinition = "TEXT")
+    private String sanitizedErrorMessage;
+
+    @Column(name = "lot_code_snapshot", length = 60)
+    private String lotCodeSnapshot;
+
+    @Column(name = "attachment_original_name", length = 255)
+    private String attachmentOriginalName;
+
+    @Column(name = "attachment_stored_path", length = 500)
+    private String attachmentStoredPath;
+
+    @Column(name = "attachment_mime_type", length = 100)
+    private String attachmentMimeType;
+
+    @Column(name = "attachment_size")
+    private Long attachmentSize;
+
+    @Column(name = "attachment_sha256", length = 64)
+    private String attachmentSha256;
+
+    @Column(name = "jira_attachment_synced")
+    private Boolean jiraAttachmentSynced = false;
+
     @Version
     @Column(name = "version")
     private Long version;
@@ -167,6 +210,12 @@ public class IncidentReport {
         }
         if (this.slaBreached == null) {
             this.slaBreached = false;
+        }
+        if (this.source == null || this.source.isBlank()) {
+            this.source = "MANUAL_SUPPORT";
+        }
+        if (this.jiraAttachmentSynced == null) {
+            this.jiraAttachmentSynced = false;
         }
     }
 
@@ -274,6 +323,48 @@ public class IncidentReport {
 
     public Boolean getSlaBreached() { return slaBreached; }
     public void setSlaBreached(Boolean slaBreached) { this.slaBreached = slaBreached; }
+
+    public String getSource() { return source; }
+    public void setSource(String source) { this.source = source; }
+
+    public WorkContinuity getWorkContinuity() { return workContinuity; }
+    public void setWorkContinuity(WorkContinuity workContinuity) { this.workContinuity = workContinuity; }
+
+    public String getActionAttempted() { return actionAttempted; }
+    public void setActionAttempted(String actionAttempted) { this.actionAttempted = actionAttempted; }
+
+    public Integer getHttpStatus() { return httpStatus; }
+    public void setHttpStatus(Integer httpStatus) { this.httpStatus = httpStatus; }
+
+    public String getErrorCode() { return errorCode; }
+    public void setErrorCode(String errorCode) { this.errorCode = errorCode; }
+
+    public String getTechnicalRequestId() { return technicalRequestId; }
+    public void setTechnicalRequestId(String technicalRequestId) { this.technicalRequestId = technicalRequestId; }
+
+    public String getSanitizedErrorMessage() { return sanitizedErrorMessage; }
+    public void setSanitizedErrorMessage(String sanitizedErrorMessage) { this.sanitizedErrorMessage = sanitizedErrorMessage; }
+
+    public String getLotCodeSnapshot() { return lotCodeSnapshot; }
+    public void setLotCodeSnapshot(String lotCodeSnapshot) { this.lotCodeSnapshot = lotCodeSnapshot; }
+
+    public String getAttachmentOriginalName() { return attachmentOriginalName; }
+    public void setAttachmentOriginalName(String attachmentOriginalName) { this.attachmentOriginalName = attachmentOriginalName; }
+
+    public String getAttachmentStoredPath() { return attachmentStoredPath; }
+    public void setAttachmentStoredPath(String attachmentStoredPath) { this.attachmentStoredPath = attachmentStoredPath; }
+
+    public String getAttachmentMimeType() { return attachmentMimeType; }
+    public void setAttachmentMimeType(String attachmentMimeType) { this.attachmentMimeType = attachmentMimeType; }
+
+    public Long getAttachmentSize() { return attachmentSize; }
+    public void setAttachmentSize(Long attachmentSize) { this.attachmentSize = attachmentSize; }
+
+    public String getAttachmentSha256() { return attachmentSha256; }
+    public void setAttachmentSha256(String attachmentSha256) { this.attachmentSha256 = attachmentSha256; }
+
+    public Boolean getJiraAttachmentSynced() { return jiraAttachmentSynced; }
+    public void setJiraAttachmentSynced(Boolean jiraAttachmentSynced) { this.jiraAttachmentSynced = jiraAttachmentSynced; }
 
     public Long getVersion() { return version; }
     public void setVersion(Long version) { this.version = version; }

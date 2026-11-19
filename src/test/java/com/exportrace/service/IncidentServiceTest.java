@@ -245,20 +245,20 @@ public class IncidentServiceTest {
     }
 
     @Test
-    @DisplayName("INC-A03: Las 9 combinaciones Impacto × Urgencia producen exactamente la prioridad esperada")
+    @DisplayName("INC-A03 & CTX-INC-03: Las 9 combinaciones Impacto × Urgencia (Semana 14 UTP) producen exactamente la prioridad esperada")
     void incA03_priorityMatrix_calculatesAllNineCombinationsCorrectly() {
         assertEquals(IncidentPriority.P1_CRITICAL,
                 incidentPriorityService.calculatePriority(IncidentImpact.HIGH, IncidentUrgency.HIGH));
         assertEquals(IncidentPriority.P2_HIGH,
                 incidentPriorityService.calculatePriority(IncidentImpact.HIGH, IncidentUrgency.MEDIUM));
-        assertEquals(IncidentPriority.P2_HIGH,
+        assertEquals(IncidentPriority.P3_MEDIUM,
                 incidentPriorityService.calculatePriority(IncidentImpact.HIGH, IncidentUrgency.LOW));
 
         assertEquals(IncidentPriority.P2_HIGH,
                 incidentPriorityService.calculatePriority(IncidentImpact.MEDIUM, IncidentUrgency.HIGH));
         assertEquals(IncidentPriority.P3_MEDIUM,
                 incidentPriorityService.calculatePriority(IncidentImpact.MEDIUM, IncidentUrgency.MEDIUM));
-        assertEquals(IncidentPriority.P3_MEDIUM,
+        assertEquals(IncidentPriority.P4_LOW,
                 incidentPriorityService.calculatePriority(IncidentImpact.MEDIUM, IncidentUrgency.LOW));
 
         assertEquals(IncidentPriority.P3_MEDIUM,
@@ -613,5 +613,68 @@ public class IncidentServiceTest {
                         .header("Authorization", "Bearer " + tokenSuperAdmin))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(created.getCode()));
+    }
+
+    @Test
+    @DisplayName("CTX-INC-02, 04, 06, 07, 10, 11, 12: Incidencia contextual por multipart persiste metadatos, adjunto, calcula prioridad sin selección manual, respeta RBAC y no bloquea SQLite en audit_logs")
+    void ctxInc_contextualCreationWithAttachmentAndRbacAndSqliteAuditIntegrity() throws Exception {
+        CreateIncidentRequest ctxReq = new CreateIncidentRequest();
+        ctxReq.setCategory(IncidentCategory.CERTIFICATION);
+        ctxReq.setSummary("[CERTIFICACION] Error al tramitar expediente SANIPES");
+        ctxReq.setDescription("Fallo HTTP 500 al enviar expediente digital del lote.");
+        ctxReq.setImpact(IncidentImpact.HIGH);
+        ctxReq.setWorkContinuity(WorkContinuity.PUEDE_CONTINUAR); // HIGH + LOW = P3_MEDIUM (Semana 14 UTP)
+        ctxReq.setModule("CERTIFICACION");
+        ctxReq.setRoute("/certification");
+        ctxReq.setLotCode(testLot.getCodigo());
+        ctxReq.setSource("CONTEXTUAL_ERROR");
+        ctxReq.setActionAttempted("Tramitar expediente SANIPES");
+        ctxReq.setHttpStatus(500);
+        ctxReq.setErrorCode("HTTP_500");
+        ctxReq.setTechnicalRequestId("req-500-sanipes");
+        ctxReq.setSanitizedErrorMessage("Error interno al procesar certificado sanitario.");
+
+        org.springframework.mock.web.MockMultipartFile reqPart = new org.springframework.mock.web.MockMultipartFile(
+                "request",
+                "",
+                MediaType.APPLICATION_JSON_VALUE,
+                objectMapper.writeValueAsBytes(ctxReq)
+        );
+        org.springframework.mock.web.MockMultipartFile filePart = new org.springframework.mock.web.MockMultipartFile(
+                "file",
+                "captura-certificacion.png",
+                "image/png",
+                new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
+        );
+
+        MvcResult mvcRes = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/incidents")
+                        .file(reqPart)
+                        .file(filePart)
+                        .header("Authorization", "Bearer " + tokenQa))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.source").value("CONTEXTUAL_ERROR"))
+                .andExpect(jsonPath("$.priority").value("P3_MEDIUM"))
+                .andExpect(jsonPath("$.module").value("CERTIFICACION"))
+                .andExpect(jsonPath("$.route").value("/certification"))
+                .andExpect(jsonPath("$.relatedLotCode").value(testLot.getCodigo()))
+                .andExpect(jsonPath("$.httpStatus").value(500))
+                .andExpect(jsonPath("$.errorCode").value("HTTP_500"))
+                .andExpect(jsonPath("$.hasAttachment").value(true))
+                .andReturn();
+
+        String rawJson = mvcRes.getResponse().getContentAsString();
+        assertFalse(rawJson.contains("apiToken"), "Ningún secreto Jira debe llegar al frontend");
+
+        IncidentDTO created = objectMapper.readValue(rawJson, IncidentDTO.class);
+
+        // El propietario puede descargar la captura adjunta
+        mockMvc.perform(get("/api/incidents/" + created.getId() + "/attachment")
+                        .header("Authorization", "Bearer " + tokenQa))
+                .andExpect(status().isOk());
+
+        // Otro usuario operacional NO puede ver ni descargar la incidencia ajena (403 Forbidden)
+        mockMvc.perform(get("/api/incidents/" + created.getId() + "/attachment")
+                        .header("Authorization", "Bearer " + tokenProduccion))
+                .andExpect(status().isForbidden());
     }
 }

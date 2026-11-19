@@ -9,7 +9,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
- * Contrato de entrada para reportar una incidencia local en ExporTrace.
+ * Contrato de entrada para reportar una incidencia local en ExporTrace (Manual o Contextual).
  * No permite ni expone setters para: reporterUserId, reporterEmail, reporterRole,
  * priority, status, syncStatus ni jiraIssueKey (estrictamente controlados en backend).
  */
@@ -40,6 +40,26 @@ public class CreateIncidentRequest {
     private String route;
 
     private Long relatedLotId;
+
+    @Size(max = 60, message = "El código de lote no debe superar los 60 caracteres.")
+    private String lotCode;
+
+    @Size(max = 30, message = "El origen del reporte no debe superar los 30 caracteres.")
+    private String source;
+
+    @Size(max = 200, message = "La acción realizada no debe superar los 200 caracteres.")
+    private String actionAttempted;
+
+    private Integer httpStatus;
+
+    @Size(max = 80, message = "El código de error no debe superar los 80 caracteres.")
+    private String errorCode;
+
+    @Size(max = 100, message = "El identificador técnico no debe superar los 100 caracteres.")
+    private String technicalRequestId;
+
+    @Size(max = 1000, message = "El mensaje de error sanitizado no debe superar los 1000 caracteres.")
+    private String sanitizedErrorMessage;
 
     public CreateIncidentRequest() {}
 
@@ -79,4 +99,25 @@ public class CreateIncidentRequest {
 
     public Long getRelatedLotId() { return relatedLotId; }
     public void setRelatedLotId(Long relatedLotId) { this.relatedLotId = relatedLotId; }
+
+    public String getLotCode() { return lotCode; }
+    public void setLotCode(String lotCode) { this.lotCode = lotCode; }
+
+    public String getSource() { return source; }
+    public void setSource(String source) { this.source = source; }
+
+    public String getActionAttempted() { return actionAttempted; }
+    public void setActionAttempted(String actionAttempted) { this.actionAttempted = actionAttempted; }
+
+    public Integer getHttpStatus() { return httpStatus; }
+    public void setHttpStatus(Integer httpStatus) { this.httpStatus = httpStatus; }
+
+    public String getErrorCode() { return errorCode; }
+    public void setErrorCode(String errorCode) { this.errorCode = errorCode; }
+
+    public String getTechnicalRequestId() { return technicalRequestId; }
+    public void setTechnicalRequestId(String technicalRequestId) { this.technicalRequestId = technicalRequestId; }
+
+    public String getSanitizedErrorMessage() { return sanitizedErrorMessage; }
+    public void setSanitizedErrorMessage(String sanitizedErrorMessage) { this.sanitizedErrorMessage = sanitizedErrorMessage; }
 }

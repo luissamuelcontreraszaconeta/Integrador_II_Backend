@@ -37,6 +37,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private UserModuleAccessRepository userModuleAccessRepository;
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        return uri != null && (uri.equals("/actuator") || uri.startsWith("/actuator/"));
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
